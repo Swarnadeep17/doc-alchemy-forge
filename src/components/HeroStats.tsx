@@ -1,6 +1,7 @@
 
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { Skeleton } from "@/components/ui/skeleton";
+import React from "react";
 
 const AnimatedStat = ({
   children,
@@ -13,12 +14,47 @@ const AnimatedStat = ({
 export const HeroStats = () => {
   const { stats, loading } = useLiveStats();
 
-  // Use overall stats as monthly fallback if your backend doesn't support monthly splits
-  const visits = stats?.overall?.visits ?? 0;
-  const downloads = stats?.overall?.downloads ?? 0;
+  // Debug
+  console.log("HeroStats: received stats", stats);
+
+  const visits = stats?.overall?.visits;
+  const downloads = stats?.overall?.downloads;
 
   // Format month string (visual only)
   const month = new Date().toLocaleString("en-US", { month: "short", year: "2-digit" });
+
+  // Show a clearer fallback if stats are not available
+  let visitsContent: React.ReactNode;
+  if (loading) {
+    visitsContent = <Skeleton className="w-12 h-9 bg-gray-700"/>;
+  } else if (typeof visits === "number") {
+    visitsContent = (
+      <>
+        {visits}
+        <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
+          visits
+        </span>
+      </>
+    );
+  } else {
+    visitsContent = <span className="text-red-400 font-mono">No stats</span>;
+  }
+
+  let downloadsContent: React.ReactNode;
+  if (loading) {
+    downloadsContent = <Skeleton className="w-12 h-9 bg-gray-700"/>;
+  } else if (typeof downloads === "number") {
+    downloadsContent = (
+      <>
+        {downloads}
+        <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
+          downloads
+        </span>
+      </>
+    );
+  } else {
+    downloadsContent = <span className="text-red-400 font-mono">No stats</span>;
+  }
 
   return (
     <section className="mt-12 mb-8 flex flex-col items-center w-full animate-fade-in">
@@ -28,25 +64,11 @@ export const HeroStats = () => {
         </h1>
         <div className="flex items-center justify-center gap-3 flex-wrap mt-2">
           <AnimatedStat>
-            {loading ? <Skeleton className="w-12 h-9 bg-gray-700"/> : (
-              <>
-                {visits}
-                <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
-                  visits
-                </span>
-              </>
-            )}
+            {visitsContent}
           </AnimatedStat>
           <span className="text-sm text-white/40 font-mono">|</span>
           <AnimatedStat>
-            {loading ? <Skeleton className="w-12 h-9 bg-gray-700"/> : (
-              <>
-                {downloads}
-                <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
-                  downloads
-                </span>
-              </>
-            )}
+            {downloadsContent}
           </AnimatedStat>
           <span className="text-xs text-gray-400 font-mono ml-2">{month}</span>
         </div>
@@ -58,3 +80,4 @@ export const HeroStats = () => {
     </section>
   );
 };
+

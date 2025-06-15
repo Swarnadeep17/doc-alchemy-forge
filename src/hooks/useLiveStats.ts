@@ -28,7 +28,10 @@ export function useLiveStats() {
   useEffect(() => {
     const statsRef = ref(db, "/stats");
     const unsubscribe = onValue(statsRef, (snapshot) => {
-      setStats(snapshot.val());
+      const data = snapshot.val();
+      // Debug log:
+      console.log("Firebase live stats snapshot:", data);
+      setStats(data);
       setLoading(false);
     });
 
@@ -37,3 +40,4 @@ export function useLiveStats() {
 
   return { stats, loading };
 }
+

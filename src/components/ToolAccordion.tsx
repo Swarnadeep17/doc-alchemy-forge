@@ -44,6 +44,9 @@ export const ToolAccordion = () => {
   const [loading, setLoading] = useState(true);
   const { stats } = useLiveStats();
 
+  // Debug
+  console.log("ToolAccordion: liveStats tools", stats?.tools);
+
   useEffect(() => {
     fetch("/tools/status.json")
       .then(r => r.json())
@@ -74,16 +77,25 @@ export const ToolAccordion = () => {
               </AccordionTrigger>
               <AccordionContent className="bg-gradient-to-bl from-black/60 to-white/10 pb-4 px-2 sm:px-6">
                 <ul>
-                  {Object.entries(tools).map(([tool, status]) => (
-                    <ToolItem
-                      key={tool}
-                      title={tool[0].toUpperCase() + tool.slice(1)}
-                      status={status}
-                      toolKey={tool}
-                      stat={status === "available"
-                        ? stats?.tools?.[category]?.[tool]?.visits ?? 0 : undefined}
-                    />
-                  ))}
+                  {Object.entries(tools).map(([tool, status]) => {
+                    let statValue = undefined;
+                    if (status === "available") {
+                      statValue = stats?.tools?.[category]?.[tool]?.visits;
+                      // Log each tool's stat for debug visibility
+                      console.log(`Tool stat for ${category}/${tool}:`, statValue);
+                    }
+                    return (
+                      <ToolItem
+                        key={tool}
+                        title={tool[0].toUpperCase() + tool.slice(1)}
+                        status={status}
+                        toolKey={tool}
+                        stat={status === "available"
+                          ? (typeof statValue === "number" ? statValue : undefined)
+                          : undefined}
+                      />
+                    );
+                  })}
                 </ul>
               </AccordionContent>
             </AccordionItem>
