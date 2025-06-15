@@ -2,7 +2,7 @@ import Header from "@/components/Header";
 import { ToolAccordion } from "@/components/ToolAccordion";
 import { HeroStats } from "@/components/HeroStats";
 import { WhyUsTable } from "@/components/WhyUsTable";
-import { Button } from "@/components/ui/button";
+import { USPCard } from "@/components/USPCard";
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { useEffect, useState } from "react";
 
@@ -72,6 +72,33 @@ const useToolList = (stats: any) => {
   return { tools, loading };
 };
 
+const USP_LIST = [
+  {
+    title: "Client-Side Only",
+    description: "All processing is local—your data is never sent to any server, ensuring 100% privacy.",
+  },
+  {
+    title: "No Account Needed",
+    description: "Access powerful document tools instantly with zero signup and no personal info required.",
+  },
+  {
+    title: "Real-Time Transparency",
+    description: "Live stats are publicly displayed, reflecting our commitment to open usage and honesty.",
+  },
+  {
+    title: "Zero File Uploads",
+    description: "Never upload your docs to the internet—edit, convert or redact securely in your own browser.",
+  },
+  {
+    title: "Modern Web Tech",
+    description: "Optimized for speed using cutting-edge browser technologies—no plugins or downloads needed.",
+  },
+  {
+    title: "Forever Free & Secure",
+    description: "Our mission: Simple, secure, and free tools for everyone, with no tracking—ever.",
+  },
+];
+
 const Index = () => {
   const { stats } = useLiveStats();
   const { tools, loading } = useToolList(stats);
@@ -80,8 +107,8 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-black">
       <Header />
 
-      {/* Hero + Stats Section, centered */}
       <main className="flex-1 flex flex-col items-center">
+        {/* Hero + Stats Section, centered */}
         <section className="w-full flex flex-col items-center justify-center py-10 px-2 sm:px-0 mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-widest mb-5 animate-fade-in uppercase drop-shadow">
             Privacy-first Document Tools
@@ -93,8 +120,22 @@ const Index = () => {
           </div>
         </section>
 
+        {/* ---- USP Cards Section ---- */}
+        <section className="w-full flex flex-col items-center justify-center mt-2 mb-12 px-2">
+          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {USP_LIST.map((usp) => (
+              <USPCard
+                key={usp.title}
+                title={usp.title}
+                description={usp.description}
+              />
+            ))}
+          </div>
+        </section>
+        {/* -------------------------- */}
+
         {/* Tools Accordion - highlight, no centering, full width */}
-        <section className="w-full max-w-3xl mx-auto mt-10 mb-10 px-2">
+        <section className="w-full max-w-3xl mx-auto mt-8 mb-10 px-2">
           <ToolAccordion />
         </section>
 
