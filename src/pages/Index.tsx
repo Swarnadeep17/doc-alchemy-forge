@@ -5,6 +5,7 @@ import { WhyUsTable } from "@/components/WhyUsTable";
 import { USPCard } from "@/components/USPCard";
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { useEffect, useState } from "react";
+import { incrementStat } from "@/lib/incrementStats";
 
 // Mockup: Tool cards for a horizontally scrolling tools section.
 // For real design, use ToolAccordion; here, lay out a special horizontal area as a "Surprise".
@@ -102,6 +103,11 @@ const USP_LIST = [
 const Index = () => {
   const { stats } = useLiveStats();
   const { tools, loading } = useToolList(stats);
+
+  // Increment website visit count on mount (once per user session)
+  useEffect(() => {
+    incrementStat(["overall", "visits"]);
+  }, []);
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-black">
