@@ -3,10 +3,10 @@
   "PDF": {
     "merge": "available",
     "split": "coming_soon",
-    "compress": "available"
+    "compress": "coming_soon"
   },
   "Image": {
-    "convert": "available",
+    "convert": "coming_soon",
     "crop": "coming_soon"
   }
 }
