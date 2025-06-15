@@ -14,16 +14,19 @@ const TABS = [
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState("analytics");
-  const [authChecked, setAuthChecked] = useState(false);
+  // improved: Don't show dashboard/unauthorized till user is loaded.
+  const [checkedAuth, setCheckedAuth] = useState(false);
 
   useEffect(() => {
-    // Wait for user info to load before rendering
-    setAuthChecked(true);
+    if (user !== undefined) setCheckedAuth(true);
   }, [user]);
 
-  if (!authChecked) {
+  if (!checkedAuth) {
+    // loading spinner for better UX
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black" />
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <span className="text-cyan-400 animate-pulse text-xl font-mono font-bold">Loading...</span>
+      </div>
     );
   }
 
