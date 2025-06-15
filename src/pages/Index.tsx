@@ -4,6 +4,8 @@ import { ToolAccordion } from "@/components/ToolAccordion";
 import { HeroStats } from "@/components/HeroStats";
 import { WhyUsTable } from "@/components/WhyUsTable";
 import { Button } from "@/components/ui/button";
+import { useLiveStats } from "@/hooks/useLiveStats";
+import { useEffect, useState } from "react";
 
 // Mockup: Tool cards for a horizontally scrolling tools section.
 // For real design, use ToolAccordion; here, lay out a special horizontal area as a "Surprise".
@@ -39,15 +41,13 @@ const ToolCard = ({
   </div>
 );
 
-import { useEffect, useState } from "react";
-
-const useToolList = () => {
-  // This is a client-side fetch and merge of JSON + stats (mirroring what's in ToolAccordion)
+// custom hook to fetch tool list and inject stats
+const useToolList = (stats: any) => {
   const [tools, setTools] = useState<
     { category: string; tool: string; status: "available" | "coming_soon"; uses: number }[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const { stats } = HeroStats ? require('@/hooks/useLiveStats').useLiveStats() : { stats: null };
+
   useEffect(() => {
     fetch("/tools/status.json")
       .then((r) => r.json())
@@ -59,9 +59,10 @@ const useToolList = () => {
               category,
               tool: tool[0].toUpperCase() + tool.slice(1),
               status,
-              uses: status === "available"
-                ? stats?.tools?.[category]?.[tool]?.visits ?? 0
-                : 0,
+              uses:
+                status === "available"
+                  ? stats?.tools?.[category]?.[tool]?.visits ?? 0
+                  : 0,
             });
           }
         }
@@ -73,7 +74,8 @@ const useToolList = () => {
 };
 
 const Index = () => {
-  const { tools, loading } = useToolList();
+  const { stats } = useLiveStats();
+  const { tools, loading } = useToolList(stats);
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-950 to-black">
@@ -162,3 +164,4 @@ const Index = () => {
 };
 
 export default Index;
+
