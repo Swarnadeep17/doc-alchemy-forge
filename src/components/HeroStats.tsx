@@ -3,102 +3,86 @@ import { useLiveStats } from "@/hooks/useLiveStats";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
 
-/** 
- * Animated glowing stat number. 
- * Add pulsing, glow, and a lively gradient via Tailwind and animation.
+/**
+ * Soft animated number: modern, subtle, with only a gentle highlight.
+ * Removes aggressive drop-shadow, keeps just a light highlight + gentle animation.
  */
-const GlowingNumber = ({ children }: { children: React.ReactNode }) => (
+const SoftGlowingNumber = ({ children }: { children: React.ReactNode }) => (
   <span
-    className="inline-block text-[2.3rem] sm:text-5xl font-black font-mono
-      text-transparent bg-gradient-to-r from-cyan-200 via-white to-purple-200 bg-clip-text
-      drop-shadow-[0_2px_20px_rgba(100,255,255,0.3)]
-      animate-glow"
+    className="inline-block font-bold font-mono text-[2.1rem] sm:text-4xl
+      text-transparent bg-gradient-to-br from-cyan-100 via-white to-violet-200 bg-clip-text
+      animate-number-wiggle"
     style={{
-      // fallback if animate-glow fails on some browsers
-      filter: "drop-shadow(0px 0px 8px #67e8f9) drop-shadow(0px 0px 2px #fff)",
+      // fallback for browsers not supporting keyframes
+      textShadow: "0 1px 4px #89c2fa, 0 0px 1px #fff",
+      filter: "drop-shadow(0 2px 6px #6ee7b7b6)",
     }}
   >
     {children}
   </span>
 );
 
-// Custom glowing animation (fade + glow)
-const glowAnimation = `
-@keyframes glow {
-  0%, 100% {
-    text-shadow: 0 0 18px #67e8f9, 0 0 8px #fff, 0 0 2px #fff;
-  }
-  50% {
-    text-shadow: 0 0 28px #fff, 0 0 12px #a78bfa, 0 0 6px #fff;
-  }
+// Subtle number wiggle
+const numberWiggleAnimation = `
+@keyframes number-wiggle {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(-2px) scale(1.025); }
+  65% { transform: translateY(1px) scale(0.99); }
 }
-.animate-glow {
-  animation: glow 1.5s ease-in-out infinite alternate;
+.animate-number-wiggle {
+  animation: number-wiggle 1.7s ease-in-out infinite;
 }
 `;
 
-// Inject the animation into the page once
-if (typeof document !== "undefined" && !document.getElementById("hero-glow-style")) {
+if (typeof document !== "undefined" && !document.getElementById("hero-soft-wiggle-style")) {
   const s = document.createElement("style");
-  s.id = "hero-glow-style";
-  s.innerHTML = glowAnimation;
+  s.id = "hero-soft-wiggle-style";
+  s.innerHTML = numberWiggleAnimation;
   document.head.appendChild(s);
 }
 
-// Stat box with improved background (darker, semi-translucent, glassy)
-const AnimatedStat = ({
-  children,
-}: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center bg-gradient-to-r from-gray-900/90 via-gray-900/80 to-black/80
-      rounded-xl px-5 py-3 mx-2
-      shadow-xl border border-cyan-400/30 ring-2 ring-cyan-400/20
-      animate-fade-in
-  ">
-    {children}
-  </span>
+const StatLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="ml-1 text-base font-medium text-cyan-100/75 tracking-wide">{children}</span>
+);
+
+const DotSep = () => (
+  <span className="mx-3 text-cyan-300/20 select-none text-2xl align-middle">•</span>
 );
 
 export const HeroStats = () => {
   const { stats, loading } = useLiveStats();
 
-  // Debug
-  console.log("HeroStats: received stats", stats);
-
   const visits = stats?.overall?.visits;
   const downloads = stats?.overall?.downloads;
   const month = new Date().toLocaleString("en-US", { month: "short", year: "2-digit" });
 
-  // Show a clearer fallback if stats are not available
-  let visitsContent: React.ReactNode;
-  if (loading) {
-    visitsContent = <Skeleton className="w-14 h-10 bg-gray-700" />;
-  } else if (typeof visits === "number") {
-    visitsContent = (
-      <>
-        <GlowingNumber>{visits}</GlowingNumber>
-        <span className="ml-2 text-lg sm:text-base font-medium text-cyan-100/80 tracking-normal">
-          visits
-        </span>
-      </>
-    );
-  } else {
-    visitsContent = <span className="text-red-400 font-mono">No stats</span>;
-  }
+  let content: React.ReactNode;
 
-  let downloadsContent: React.ReactNode;
   if (loading) {
-    downloadsContent = <Skeleton className="w-14 h-10 bg-gray-700" />;
-  } else if (typeof downloads === "number") {
-    downloadsContent = (
-      <>
-        <GlowingNumber>{downloads}</GlowingNumber>
-        <span className="ml-2 text-lg sm:text-base font-medium text-cyan-100/80 tracking-normal">
-          downloads
-        </span>
-      </>
+    content = (
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-12 h-7 bg-gray-700" />
+        <DotSep />
+        <Skeleton className="w-12 h-7 bg-gray-700" />
+      </div>
+    );
+  } else if (typeof visits === "number" && typeof downloads === "number") {
+    content = (
+      <div className="flex items-center justify-center gap-0 whitespace-nowrap">
+        <SoftGlowingNumber>{visits}</SoftGlowingNumber>
+        <StatLabel>visits</StatLabel>
+        <DotSep />
+        <SoftGlowingNumber>{downloads}</SoftGlowingNumber>
+        <StatLabel>downloads</StatLabel>
+        <span className="ml-2 text-xs text-cyan-100/40 font-mono">{month}</span>
+      </div>
     );
   } else {
-    downloadsContent = <span className="text-red-400 font-mono">No stats</span>;
+    content = (
+      <div className="flex items-center gap-3">
+        <span className="text-red-400 font-mono">No stats</span>
+      </div>
+    );
   }
 
   return (
@@ -110,15 +94,9 @@ export const HeroStats = () => {
         <h1 className="text-4xl md:text-5xl font-extrabold font-mono tracking-[.02em] text-white drop-shadow-xl mb-5">
           Privacy-first document tools
         </h1>
-        <div className="flex items-center justify-center gap-5 flex-wrap mt-2">
-          <AnimatedStat>
-            {visitsContent}
-          </AnimatedStat>
-          <span className="text-xl text-cyan-100/30 font-mono px-2 select-none">|</span>
-          <AnimatedStat>
-            {downloadsContent}
-          </AnimatedStat>
-          <span className="text-xs text-cyan-100/40 font-mono ml-2">{month}</span>
+        {/* Compact stats row */}
+        <div className="mt-2 mb-1 flex items-center justify-center w-full">
+          {content}
         </div>
         <div className="text-cyan-50/90 text-base mt-7 font-medium max-w-sm mx-auto leading-relaxed animate-fade-in">
           All tools run fully in your browser for total privacy. <br />
@@ -128,3 +106,4 @@ export const HeroStats = () => {
     </section>
   );
 };
+
