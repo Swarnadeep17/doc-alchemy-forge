@@ -34,7 +34,7 @@ interface AuthContextProps {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   signupWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<void>;
+  loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<any>;
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
   upgradeToPremium: (promoCode: string) => Promise<void>;
@@ -135,25 +135,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Phone signin (step 1: start)
-  // MAKE SIGNATURE: always returns Promise<void>
-  const loginWithPhone = async (phone: string, recaptchaContainerId: string, code?: string): Promise<void> => {
+  // Returns confirmationResult for step 1, void for step 2
+  const loginWithPhone = async (
+    phone: string,
+    recaptchaContainerId: string,
+    code?: string
+  ): Promise<any> => {
     setLoading(true);
     // Step 1: start phone signin (confirmation)
     if (!code) {
-      const verifier = new RecaptchaVerifier(recaptchaContainerId, { size: 'invisible' }, auth);
+      // CORRECT: auth is first argument
+      const verifier = new RecaptchaVerifier(
+        auth,
+        recaptchaContainerId,
+        { size: "invisible" }
+      );
       const confirmationResult = await signInWithPhoneNumber(auth, phone, verifier);
       setPhoneConfResult(confirmationResult);
       setLoading(false);
       toast({ title: "Enter the code sent to your phone." });
-      // Don't return confirmationResult (to match Promise<void> type)
-      return;
+      return confirmationResult; // return for UI
     } else {
       // If code present, complete sign in
       if (!phoneConfResult) throw new Error("No confirmation available for verification");
       await phoneConfResult.confirm(code);
       setPhoneConfResult(null);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
   };
 
   // Phone sign in (step 2: verify)
