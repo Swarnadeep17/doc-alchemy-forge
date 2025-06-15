@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -56,7 +55,7 @@ const AdminDashboard = () => {
             <Button
               onClick={handleCreateCode}
               disabled={creating}
-              className="bg-cyan-700 hover:bg-cyan-600 text-white font-semibold mt-4 md:mt-0 shadow"
+              className="bg-cyan-700 hover:bg-cyan-600 text-white font-semibold mt-4 md:mt-0 shadow transition-all uppercase"
             >
               {creating ? "Creating..." : "Generate Code"}
             </Button>

@@ -51,7 +51,11 @@ const Profile = () => {
               </div>
             )}
           </div>
-          <Button className="mt-8 w-full bg-red-600 hover:bg-red-700 text-white font-semibold transition-all" variant="destructive" onClick={handleLogout}>
+          <Button
+            className="mt-8 w-full bg-red-600 hover:bg-red-700 text-white font-semibold shadow transition-all uppercase"
+            variant="destructive"
+            onClick={handleLogout}
+          >
             Logout
           </Button>
         </CardContent>

@@ -19,7 +19,7 @@ const NotFound = () => {
         <p className="text-xl text-white/70 mb-6 font-mono">Oops! Page not found</p>
         <a
           href="/"
-          className="inline-block rounded bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 font-mono uppercase text-sm tracking-wider font-semibold shadow transition-colors"
+          className="inline-block rounded bg-cyan-700 hover:bg-cyan-600 text-white px-6 py-2 font-mono uppercase text-sm tracking-wider font-semibold shadow transition-all"
         >
           Return to Home
         </a>
