@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { ref, onValue, remove } from "firebase/database";
@@ -56,7 +55,6 @@ const PromoCodesTab = () => {
     try {
       let expiresAt: number | undefined;
       let type: "permanent" | "one_time" | "expires_in" = mode;
-
       if (mode === "expires_in") {
         expiresAt = Date.now() + expireSeconds * 1000;
       }
