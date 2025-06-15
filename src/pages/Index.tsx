@@ -1,4 +1,3 @@
-
 import Header from "@/components/Header";
 import { ToolAccordion } from "@/components/ToolAccordion";
 import { HeroStats } from "@/components/HeroStats";
@@ -78,74 +77,54 @@ const Index = () => {
   const { tools, loading } = useToolList(stats);
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-950 to-black">
+    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-black">
       <Header />
 
       {/* Hero + Stats Section */}
       <main className="flex-1 flex flex-col items-center">
         <section className="w-full flex flex-col items-center justify-center py-10 px-2 sm:px-0">
-          <h1 className="text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-widest mb-5 animate-fade-in uppercase">
+          <h1 className="text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-widest mb-5 animate-fade-in uppercase drop-shadow">
             Privacy-first Document Tools
           </h1>
           <HeroStats />
-          <Button
-            size="lg"
-            className="mt-7 mb-2 shadow-xl text-lg bg-cyan-400/90 text-black font-black hover:bg-cyan-100/90 transition"
-          >
-            Try the Tools
-          </Button>
-          <div className="text-gray-300 text-base mt-2 font-medium max-w-lg mx-auto leading-relaxed animate-fade-in text-center">
-            All tools run 100% in your browser for total privacy.<br />
+          {/* CTA Button removed, stays monochrome, no color accents */}
+          <div className="text-gray-200 text-base mt-2 font-medium max-w-lg mx-auto leading-relaxed animate-fade-in text-center">
+            All tools run <span className="font-mono">100%</span> in your browser for total privacy.<br />
             Never upload your files. No sign up. No tracking.
           </div>
         </section>
 
-        {/* Horizontally Scrolling Tools "Gallery" */}
-        <section id="tools" className="w-full mt-8 mb-8">
-          <h2 className="text-xl font-extrabold text-white/90 font-mono uppercase tracking-wide mb-2 px-4">Featured Tools</h2>
-          <div className="flex overflow-x-auto py-4 scrollbar-thin scrollbar-thumb-cyan-600/40 gap-2 px-2">
-            {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="min-w-[180px] h-[100px] mx-2 rounded-xl bg-gray-800/80 animate-pulse" />
-                ))
-              : tools.map((t) => (
-                  <ToolCard key={t.tool + t.category} {...t} />
-                ))}
-          </div>
-          <div className="text-sm text-white/30 px-4 mt-2">Explore more in the Tools section below.</div>
-        </section>
-
-        {/* Tools Accordion */}
-        <section className="w-full max-w-2xl mx-auto mt-8 mb-8">
+        {/* Tools Accordion - now futuristic highlight */}
+        <section className="w-full max-w-3xl mx-auto mt-10 mb-10 px-2">
           <ToolAccordion />
         </section>
 
         {/* Why Us */}
         <section id="whyus" className="w-full max-w-2xl mx-auto mt-12 mb-8 px-2">
-          <h2 className="text-xl font-bold text-white/90 font-mono mb-4 tracking-wide">Why DocEnclave?</h2>
+          <h2 className="text-xl font-bold text-white font-mono mb-4 tracking-wide">Why DocEnclave?</h2>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
               <ul className="space-y-4">
                 <li className="flex items-center gap-3">
-                  <span className="rounded-full p-2 bg-white/10 text-cyan-200">
+                  <span className="rounded-full p-2 bg-white/10 text-white/60">
                     {/* Minimal Shield Icon (SVG inline) */}
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#67e8f9" strokeWidth="2" d="M12 4l7 4v6c0 5-3.8 7.7-7 8-3.2-.3-7-3-7-8V8l7-4z"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M12 4l7 4v6c0 5-3.8 7.7-7 8-3.2-.3-7-3-7-8V8l7-4z"/></svg>
                   </span>
-                  <span className="font-semibold text-white/90">All processing is client-side (100% privacy)</span>
+                  <span className="font-semibold text-white">All processing is client-side (100% privacy)</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <span className="rounded-full p-2 bg-white/10 text-cyan-200">
+                  <span className="rounded-full p-2 bg-white/10 text-white/60">
                     {/* Minimal Lightning Icon */}
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#67e8f9" strokeWidth="2" d="M13 2L3 14h7v8l7-12h-7z"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M13 2L3 14h7v8l7-12h-7z"/></svg>
                   </span>
-                  <span className="font-semibold text-white/90">Instant, free, no sign up ever</span>
+                  <span className="font-semibold text-white">Instant, free, no sign up ever</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <span className="rounded-full p-2 bg-white/10 text-cyan-200">
+                  <span className="rounded-full p-2 bg-white/10 text-white/60">
                     {/* Minimal Bar-Chart Icon */}
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#67e8f9" strokeWidth="2" d="M3 17v2h18v-2M7 9v6m4-9v9m4-5v5"/></svg>
+                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M3 17v2h18v-2M7 9v6m4-9v9m4-5v5"/></svg>
                   </span>
-                  <span className="font-semibold text-white/90">Transparent real-time usage stats</span>
+                  <span className="font-semibold text-white">Transparent real-time usage stats</span>
                 </li>
               </ul>
             </div>
@@ -156,7 +135,7 @@ const Index = () => {
         </section>
       </main>
 
-      <footer className="w-full py-6 text-center text-xs text-white/50 font-mono border-t border-white/15 mt-auto">
+      <footer className="w-full py-6 text-center text-xs text-white/60 font-mono border-t border-white/10 mt-auto">
         © {new Date().getFullYear()} docenclave — Built for the future.
       </footer>
     </div>
@@ -164,4 +143,3 @@ const Index = () => {
 };
 
 export default Index;
-
