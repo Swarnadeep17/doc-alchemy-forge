@@ -38,6 +38,12 @@ export interface PromoCodeRecord {
   redeemedAt?: any;
 }
 
+interface CreatePromoCodeOptions {
+  targetRole: "premium" | "admin";
+  expiresAt?: number;
+  type?: "permanent" | "one_time" | "expires_in";
+}
+
 interface AuthContextProps {
   user: AuthUser | null;
   loading: boolean;
@@ -49,7 +55,7 @@ interface AuthContextProps {
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
   // Promo codes:
-  createPromoCode: (targetRole: "premium" | "admin") => Promise<string>;
+  createPromoCode: (options: CreatePromoCodeOptions) => Promise<string>;
   redeemPromoCode: (code: string) => Promise<void>;
 }
 
@@ -199,17 +205,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // --- Promo Code Management ---
 
   // Only SuperAdmin can create codes (for Admin or Premium upgrades)
-  const createPromoCode = async (targetRole: "premium" | "admin") => {
+  const createPromoCode = async (options: CreatePromoCodeOptions) => {
     if (!user || user.role !== "superadmin")
       throw new Error("Only Superadmins can create promo codes.");
 
     const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+    const expiresAt = options.expiresAt || Date.now() + 24 * 60 * 60 * 1000;
     const codeRef = ref(db, `promoCodes/${code}`);
 
     await set(codeRef, {
       code,
-      targetRole,
+      targetRole: options.targetRole,
       createdBy: user.uid,
       createdAt: serverTimestamp(),
       expiresAt,
@@ -218,7 +224,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       redeemedAt: null,
     });
 
-    toast({ title: `Promo code created: ${code}`, description: `For ${targetRole} (expires in 24h)` });
+    toast({ title: `Promo code created: ${code}`, description: `For ${options.targetRole} (expires in 24h)` });
     return code;
   };
 
