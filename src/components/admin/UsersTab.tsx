@@ -121,7 +121,7 @@ const UsersTab = () => {
                         variant="outline"
                         className="border-blue-500 font-mono"
                         onClick={() => handleRoleChange(user.uid!, "admin")}
-                        disabled={user.role === "admin" || loading}
+                        disabled={user.role === "admin" || user.role === "anonymous" || loading}
                       >
                         Set as Admin
                       </Button>

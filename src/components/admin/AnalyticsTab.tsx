@@ -69,7 +69,16 @@ const AnalyticsTab = () => {
             <Tooltip
               contentStyle={{ background: "#18181b", color: "#fff", border: "1px solid #06b6d4" }}
               labelStyle={{ color: "#a5f3fc" }}
-              formatter={(value, name) => [value, name.charAt(0).toUpperCase() + name.slice(1)]}
+              formatter={(value, name) => {
+                // Ensure name is always rendered as a string
+                let label: string;
+                if (typeof name === "string") {
+                  label = name.charAt(0).toUpperCase() + name.slice(1);
+                } else {
+                  label = String(name);
+                }
+                return [value, label];
+              }}
             />
             <Area type="monotone" dataKey="visits" stroke="#06b6d4" fillOpacity={1} fill="url(#visits)" />
             <Area type="monotone" dataKey="downloads" stroke="#a78bfa" fillOpacity={1} fill="url(#downloads)" />
