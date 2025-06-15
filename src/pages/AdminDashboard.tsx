@@ -38,7 +38,7 @@ const AdminDashboard = () => {
       <div className="w-full max-w-lg mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10">
         <h1 className="text-3xl text-white font-bold font-mono mb-6 tracking-widest uppercase text-center">Admin Dashboard</h1>
         <div className="bg-white/10 rounded-lg shadow p-8 mb-8">
-          <h2 className="text-xl text-cyan-300 font-semibold mb-4 font-mono uppercase">Create Promo Code</h2>
+          <h2 className="text-xl text-white font-semibold mb-4 font-mono uppercase">Create Promo Code</h2>
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1">
               <label className="block mb-2 font-mono text-xs text-white/70">Target Role</label>
@@ -55,14 +55,14 @@ const AdminDashboard = () => {
             <Button
               onClick={handleCreateCode}
               disabled={creating}
-              className="bg-cyan-700 hover:bg-cyan-600 text-white font-semibold mt-4 md:mt-0 shadow transition-all uppercase"
+              className="bg-black hover:bg-gray-800 text-white font-bold mt-4 md:mt-0 shadow transition-all uppercase"
             >
               {creating ? "Creating..." : "Generate Code"}
             </Button>
           </div>
           {lastCode && (
-            <div className="mt-4 bg-cyan-900/80 p-3 rounded font-mono break-all text-cyan-200 border border-cyan-500/20">
-              Code: <span className="text-cyan-300 font-semibold">{lastCode}</span>
+            <div className="mt-4 bg-gray-800/80 p-3 rounded font-mono break-all text-white border border-gray-600/30">
+              Code: <span className="text-white font-semibold">{lastCode}</span>
             </div>
           )}
         </div>

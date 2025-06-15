@@ -52,7 +52,7 @@ const Profile = () => {
             )}
           </div>
           <Button
-            className="mt-8 w-full bg-red-600 hover:bg-red-700 text-white font-semibold shadow transition-all uppercase"
+            className="mt-8 w-full bg-black hover:bg-gray-800 text-white font-bold shadow transition-all uppercase"
             variant="destructive"
             onClick={handleLogout}
           >

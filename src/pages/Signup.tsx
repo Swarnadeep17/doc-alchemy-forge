@@ -134,7 +134,7 @@ const Signup = () => {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-cyan-700 hover:bg-cyan-600 text-white font-semibold shadow transition-all uppercase"
+            className="w-full mt-2 bg-black hover:bg-gray-800 text-white font-bold shadow transition-all uppercase"
           >
             {loading ? "Signing Up..." : "Sign Up"}
           </Button>
@@ -150,7 +150,7 @@ const Signup = () => {
           onClick={e => { e.preventDefault(); handleGoogleSignup(); }}
           disabled={loading}
           variant="outline"
-          className="w-full flex items-center mb-2 border border-cyan-400/60 text-white font-semibold uppercase hover:bg-cyan-950 transition-all"
+          className="w-full flex items-center mb-2 border border-white/70 text-black bg-white font-bold uppercase hover:bg-gray-200 hover:text-black transition-all"
         >
           <Globe className="mr-2" /> Sign Up with Google
         </Button>
@@ -159,7 +159,7 @@ const Signup = () => {
           disabled={loading}
           type="button"
           variant="outline"
-          className="w-full flex items-center border border-cyan-400/60 text-white font-semibold uppercase hover:bg-cyan-950 transition-all"
+          className="w-full flex items-center border border-white/70 bg-white text-black font-bold uppercase hover:bg-gray-200 hover:text-black transition-all"
         >
           <Phone className="mr-2" /> Sign Up with Phone
         </Button>
@@ -177,7 +177,7 @@ const Signup = () => {
             />
             {!phoneConfirm ? (
               <Button
-                className="mt-2 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold shadow transition-all uppercase"
+                className="mt-2 w-full bg-black hover:bg-gray-800 text-white font-bold shadow transition-all uppercase"
                 variant="secondary"
                 disabled={loading}
                 onClick={handlePhoneStart}
@@ -195,7 +195,7 @@ const Signup = () => {
                   className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-400"
                 />
                 <Button
-                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold shadow transition-all uppercase"
+                  className="w-full bg-black hover:bg-gray-800 text-white font-bold shadow transition-all uppercase"
                   variant="secondary"
                   disabled={loading}
                   onClick={handlePhoneVerify}
