@@ -58,10 +58,13 @@ const PromoCodesTab = () => {
       if (mode === "expires_in") {
         expiresAt = Date.now() + expireSeconds * 1000;
       }
-      if (mode === "one_time") {
-        // could also track usesLeft = 1
-      }
-      const code = await createPromoCode(creatingFor, { expiresAt, type });
+      // Combine all params into one object, assuming createPromoCode expects an object
+      const params = {
+        targetRole: creatingFor,
+        expiresAt,
+        type
+      };
+      const code = await createPromoCode(params); // Pass only 1 argument
       toast({ title: "Promo Code Created", description: code });
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
