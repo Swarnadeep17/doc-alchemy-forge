@@ -1,14 +1,19 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+import AnalyticsTab from "@/components/admin/AnalyticsTab";
+import PromoCodesTab from "@/components/admin/PromoCodesTab";
+import UsersTab from "@/components/admin/UsersTab";
+
+const TABS = [
+  { key: "analytics", label: "Analytics" },
+  { key: "promocodes", label: "Promo Codes" },
+  { key: "users", label: "Users" },
+];
 
 const AdminDashboard = () => {
-  const { user, createPromoCode } = useAuth();
-  const [targetRole, setTargetRole] = useState<"premium" | "admin">("premium");
-  const [creating, setCreating] = useState(false);
-  const [lastCode, setLastCode] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [selectedTab, setSelectedTab] = useState("analytics");
 
   if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
     return (
@@ -21,52 +26,30 @@ const AdminDashboard = () => {
     );
   }
 
-  const handleCreateCode = async () => {
-    setCreating(true);
-    try {
-      const code = await createPromoCode(targetRole);
-      setLastCode(code);
-      toast({ title: "Promo code created!", description: code });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message });
-    }
-    setCreating(false);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex flex-col items-center justify-center px-2 py-8 w-full">
-      <div className="w-full max-w-lg mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10">
+      <div className="w-full max-w-6xl mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10">
         <h1 className="text-3xl text-white font-bold font-mono mb-6 tracking-widest uppercase text-center">Admin Dashboard</h1>
-        <div className="bg-white/10 rounded-lg shadow p-8 mb-8">
-          <h2 className="text-xl text-white font-semibold mb-4 font-mono uppercase">Create Promo Code</h2>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="block mb-2 font-mono text-xs text-white/70">Target Role</label>
-              <select
-                value={targetRole}
-                onChange={e => setTargetRole(e.target.value as any)}
-                className="border bg-black/30 border-cyan-600/30 text-white rounded p-2 w-full"
-                disabled={creating}
-              >
-                <option value="premium">Premium</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <Button
-              onClick={handleCreateCode}
-              disabled={creating}
-              className="bg-black hover:bg-gray-800 text-white font-bold mt-4 md:mt-0 shadow transition-all uppercase"
+        <div className="flex gap-2 mb-8 justify-center">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              className={`px-6 py-2 rounded font-mono font-semibold text-base uppercase transition-all
+                ${selectedTab === tab.key
+                  ? "bg-cyan-500 text-black shadow"
+                  : "bg-black text-white hover:bg-gray-800"}
+              `}
+              onClick={() => setSelectedTab(tab.key)}
             >
-              {creating ? "Creating..." : "Generate Code"}
-            </Button>
-          </div>
-          {lastCode && (
-            <div className="mt-4 bg-gray-800/80 p-3 rounded font-mono break-all text-white border border-gray-600/30">
-              Code: <span className="text-white font-semibold">{lastCode}</span>
-            </div>
-          )}
+              {tab.label}
+            </button>
+          ))}
         </div>
-        {/* Add more admin UI: stats, charts, code list, etc, in next steps */}
+        <div className="mt-4">
+          {selectedTab === "analytics" && <AnalyticsTab />}
+          {selectedTab === "promocodes" && <PromoCodesTab />}
+          {selectedTab === "users" && <UsersTab />}
+        </div>
       </div>
     </div>
   );
