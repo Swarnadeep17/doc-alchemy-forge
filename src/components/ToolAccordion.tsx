@@ -61,7 +61,7 @@ export const ToolAccordion = () => {
                       status={status}
                       toolKey={tool}
                       stat={status === "available"
-                        ? stats?.tools?.[category]?.[tool]?.monthly_uses ?? 0 : undefined}
+                        ? stats?.tools?.[category]?.[tool]?.visits ?? 0 : undefined}
                     />
                   ))}
                 </ul>

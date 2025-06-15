@@ -13,11 +13,12 @@ const AnimatedStat = ({
 export const HeroStats = () => {
   const { stats, loading } = useLiveStats();
 
-  // Calculate visits/downloads for *this month*.
-  // Assume Firebase stats shape has 'monthly' property, otherwise fallback to zero
+  // Use overall stats as monthly fallback if your backend doesn't support monthly splits
+  const visits = stats?.overall?.visits ?? 0;
+  const downloads = stats?.overall?.downloads ?? 0;
+
+  // Format month string (visual only)
   const month = new Date().toLocaleString("en-US", { month: "short", year: "2-digit" });
-  const monthVisits = stats?.monthly?.visits ?? 0;
-  const monthDownloads = stats?.monthly?.downloads ?? 0;
 
   return (
     <section className="mt-12 mb-8 flex flex-col items-center w-full animate-fade-in">
@@ -29,7 +30,7 @@ export const HeroStats = () => {
           <AnimatedStat>
             {loading ? <Skeleton className="w-12 h-9 bg-gray-700"/> : (
               <>
-                {monthVisits}
+                {visits}
                 <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
                   visits
                 </span>
@@ -40,7 +41,7 @@ export const HeroStats = () => {
           <AnimatedStat>
             {loading ? <Skeleton className="w-12 h-9 bg-gray-700"/> : (
               <>
-                {monthDownloads}
+                {downloads}
                 <span className="ml-2 text-base font-normal text-black/60 tracking-normal">
                   downloads
                 </span>
