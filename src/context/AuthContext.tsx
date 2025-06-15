@@ -42,8 +42,8 @@ interface AuthContextProps {
   user: AuthUser | null;
   loading: boolean;
   // Auth flows:
-  loginWithEmail: (email: string, password: string) => Promise<void>;
-  signupWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<any>;
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
@@ -98,19 +98,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // --- Auth flows
-  const loginWithEmail = async (email: string, password: string) => {
+  const loginWithEmail = async (email: string, password: string, promoCode?: string) => {
     setLoading(true);
     await signInWithEmailAndPassword(auth, email, password);
     setLoading(false);
   };
 
-  const signupWithEmail = async (email: string, password: string) => {
+  const signupWithEmail = async (email: string, password: string, promoCode?: string) => {
     setLoading(true);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // Default role and promoCode
+    let newRole = "free";
+    let promoCodeRedeemed = null;
+
+    if (promoCode) {
+      // Try to apply promo
+      const codeRef = ref(db, `promoCodes/${promoCode}`);
+      const codeSnap = await get(codeRef);
+
+      if (codeSnap.exists()) {
+        const codeData: PromoCodeRecord = codeSnap.val();
+        // Only apply unused and unexpired codes
+        if (!codeData.redeemed && (!codeData.expiresAt || Date.now() < codeData.expiresAt)) {
+          // Set proper role and mark code as redeemed
+          if (codeData.targetRole === "premium") newRole = "premium";
+          if (codeData.targetRole === "admin") newRole = "admin";
+          promoCodeRedeemed = promoCode;
+          // Mark as redeemed in promoCodes DB
+          await update(codeRef, {
+            redeemed: true,
+            redeemedBy: cred.user.uid,
+            redeemedAt: serverTimestamp(),
+          });
+        }
+      }
+    }
+
     await set(ref(db, `users/${cred.user.uid}`), {
       email,
-      role: "free",
-      promoCodeRedeemed: null,
+      role: newRole,
+      promoCodeRedeemed,
     });
     setLoading(false);
   };
