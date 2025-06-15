@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   getAuth,
@@ -48,6 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [phoneConfResult, setPhoneConfResult] = useState<any>(null);
 
+  // Important! getAuth() takes the app object, not a string
   const auth = getAuth(app);
 
   // Get custom role from db (by user uid)
@@ -135,7 +135,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Phone signin (step 1: start)
-  const loginWithPhone = async (phone: string, recaptchaContainerId: string, code?: string) => {
+  // MAKE SIGNATURE: always returns Promise<void>
+  const loginWithPhone = async (phone: string, recaptchaContainerId: string, code?: string): Promise<void> => {
     setLoading(true);
     // Step 1: start phone signin (confirmation)
     if (!code) {
@@ -144,7 +145,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPhoneConfResult(confirmationResult);
       setLoading(false);
       toast({ title: "Enter the code sent to your phone." });
-      return confirmationResult;
+      // Don't return confirmationResult (to match Promise<void> type)
+      return;
     } else {
       // If code present, complete sign in
       if (!phoneConfResult) throw new Error("No confirmation available for verification");

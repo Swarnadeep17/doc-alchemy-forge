@@ -1,9 +1,8 @@
-
 import React, { useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Phone, Google } from "lucide-react";
+import { Loader2, Phone, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -94,7 +93,7 @@ const Signup = () => {
         variant="outline"
         className="w-full flex items-center"
       >
-        <Google className="mr-2" /> Continue with Google
+        <Globe className="mr-2" /> Continue with Google
       </Button>
       <Button
         onClick={() => setShowPhoneInputs(true)}
