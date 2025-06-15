@@ -10,8 +10,8 @@ const Account = () => {
   const navigate = useNavigate();
 
   if (loading) return (
-    <div className="flex justify-center items-center h-32">
-      <Loader2 className="animate-spin" />
+    <div className="flex justify-center items-center min-h-[30vh] bg-gradient-to-br from-black via-gray-900 to-black">
+      <Loader2 className="animate-spin text-cyan-500" />
     </div>
   );
 
@@ -22,13 +22,13 @@ const Account = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16">
-      <Card>
+    <div className="min-h-screen flex flex-col items-center justify-center w-full bg-gradient-to-br from-black via-gray-900 to-black px-2 py-8">
+      <Card className="w-full max-w-md mx-auto border-cyan-400/30 shadow-lg bg-gray-900/95">
         <CardHeader>
-          <CardTitle>Account Details</CardTitle>
+          <CardTitle className="text-white font-mono tracking-widest uppercase text-2xl mb-2">Account Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="space-y-2 text-white/90 text-base">
             <div>
               <span className="font-bold">User ID:</span> {user.uid}
             </div>

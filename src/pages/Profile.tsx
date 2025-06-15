@@ -12,8 +12,8 @@ const Profile = () => {
   const navigate = useNavigate();
 
   if (loading) return (
-    <div className="flex justify-center items-center h-32">
-      <Loader2 className="animate-spin" />
+    <div className="flex justify-center items-center min-h-[30vh] bg-gradient-to-br from-black via-gray-900 to-black">
+      <Loader2 className="animate-spin text-cyan-500" />
     </div>
   );
 
@@ -34,13 +34,13 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-16">
-      <Card>
+    <div className="min-h-screen w-full flex flex-col justify-center items-center bg-gradient-to-br from-black via-gray-900 to-black px-2 py-8">
+      <Card className="w-full max-w-md mx-auto border-cyan-400/30 shadow-lg bg-gray-900/95">
         <CardHeader>
-          <CardTitle>Your Profile</CardTitle>
+          <CardTitle className="text-white font-mono tracking-widest uppercase text-2xl mb-2">Your Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="space-y-2 text-white/90 text-base">
             <div><span className="font-bold">Email:</span> {user.email ?? "—"}</div>
             <div><span className="font-bold">Display Name:</span> {user.displayName ?? "—"}</div>
             <div><span className="font-bold">Phone:</span> {user.phoneNumber ?? "—"}</div>
@@ -51,7 +51,7 @@ const Profile = () => {
               </div>
             )}
           </div>
-          <Button className="mt-6 w-full" variant="destructive" onClick={handleLogout}>
+          <Button className="mt-8 w-full bg-red-600 hover:bg-red-700 text-white font-semibold transition-all" variant="destructive" onClick={handleLogout}>
             Logout
           </Button>
         </CardContent>

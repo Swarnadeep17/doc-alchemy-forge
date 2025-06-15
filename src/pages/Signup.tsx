@@ -78,14 +78,14 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-black">
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-8 shadow-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center px-2 py-8">
+      <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto bg-gray-900/95 shadow-xl rounded-xl p-8 border border-cyan-300/20">
+        <h2 className="text-3xl font-bold text-white mb-6 text-center font-mono tracking-widest uppercase">
+          Sign Up
+        </h2>
         <div className="space-y-4">
-
-          {/* Email signup block */}
           <div>
-            <label className="block mb-1 font-mono text-xs">Email</label>
+            <label className="block mb-1 font-mono text-xs text-white/70">Email</label>
             <Input
               type="email"
               value={email}
@@ -93,10 +93,11 @@ const Signup = () => {
               autoComplete="email"
               required
               disabled={loading}
+              className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-300"
             />
           </div>
           <div>
-            <label className="block mb-1 font-mono text-xs">Password</label>
+            <label className="block mb-1 font-mono text-xs text-white/70">Password</label>
             <Input
               type="password"
               value={password}
@@ -104,10 +105,11 @@ const Signup = () => {
               autoComplete="new-password"
               required
               disabled={loading}
+              className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-300"
             />
           </div>
           <div>
-            <label className="block mb-1 font-mono text-xs">Confirm Password</label>
+            <label className="block mb-1 font-mono text-xs text-white/70">Confirm Password</label>
             <Input
               type="password"
               value={confirmPassword}
@@ -115,53 +117,55 @@ const Signup = () => {
               autoComplete="new-password"
               required
               disabled={loading}
+              className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-300"
             />
           </div>
           <div>
-            <label className="block mb-1 font-mono text-xs">Promo Code (optional)</label>
+            <label className="block mb-1 font-mono text-xs text-white/70">Promo Code (optional)</label>
             <Input
               type="text"
               value={promoCode}
               onChange={e => setPromoCode(e.target.value.toUpperCase())}
               placeholder="Enter promo code if you have one"
               disabled={loading}
+              className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-400"
             />
           </div>
-          {error && <div className="text-red-500 font-mono text-xs">{error}</div>}
-          <Button type="submit" disabled={loading} className="w-full mt-2">
+          {error && <div className="text-red-400 font-mono text-xs">{error}</div>}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-2 bg-cyan-700 hover:bg-cyan-600 text-white font-semibold shadow transition-all"
+          >
             {loading ? "Signing Up..." : "Sign Up"}
           </Button>
         </div>
 
-        {/* Divider */}
         <div className="flex gap-2 my-6 items-center justify-center">
-          <span className="block border-b w-16 border-gray-200/50" />
+          <span className="block border-b w-16 border-gray-200/30" />
           <span className="font-medium text-gray-400">or</span>
-          <span className="block border-b w-16 border-gray-200/50" />
+          <span className="block border-b w-16 border-gray-200/30" />
         </div>
 
-        {/* Google signup button */}
         <Button
           onClick={e => { e.preventDefault(); handleGoogleSignup(); }}
           disabled={loading}
           variant="outline"
-          className="w-full flex items-center"
+          className="w-full flex items-center mb-2 border-cyan-500/40 text-white"
         >
           <Globe className="mr-2" /> Sign Up with Google
         </Button>
-
-        {/* Phone signup button */}
         <Button
           onClick={e => { e.preventDefault(); setShowPhoneInputs(state => !state); }}
           disabled={loading}
           type="button"
           variant="outline"
-          className="w-full flex items-center mt-2"
+          className="w-full flex items-center border-cyan-500/40 text-white"
         >
           <Phone className="mr-2" /> Sign Up with Phone
         </Button>
 
-        {/* Phone input block, reused from login */}
+        {/* Phone signup */}
         {showPhoneInputs && (
           <div className="mt-4">
             <Input
@@ -170,10 +174,11 @@ const Signup = () => {
               disabled={loading || phoneConfirm}
               onChange={e => setPhone(e.target.value)}
               type="tel"
+              className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-400"
             />
             {!phoneConfirm ? (
               <Button
-                className="mt-2 w-full"
+                className="mt-2 w-full bg-cyan-600 hover:bg-cyan-500 text-white"
                 variant="secondary"
                 disabled={loading}
                 onClick={handlePhoneStart}
@@ -188,9 +193,10 @@ const Signup = () => {
                   value={phoneCode}
                   disabled={loading}
                   onChange={e => setPhoneCode(e.target.value)}
+                  className="bg-black/30 border-cyan-600/30 text-white placeholder:text-gray-400"
                 />
                 <Button
-                  className="w-full"
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white"
                   variant="secondary"
                   disabled={loading}
                   onClick={handlePhoneVerify}
