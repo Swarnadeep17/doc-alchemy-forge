@@ -80,61 +80,58 @@ const Index = () => {
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-black">
       <Header />
 
-      {/* Hero + Stats Section */}
+      {/* Hero + Stats Section, centered */}
       <main className="flex-1 flex flex-col items-center">
-        <section className="w-full flex flex-col items-center justify-center py-10 px-2 sm:px-0">
+        <section className="w-full flex flex-col items-center justify-center py-10 px-2 sm:px-0 mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-widest mb-5 animate-fade-in uppercase drop-shadow">
             Privacy-first Document Tools
           </h1>
           <HeroStats />
-          {/* CTA Button removed, stays monochrome, no color accents */}
           <div className="text-gray-200 text-base mt-2 font-medium max-w-lg mx-auto leading-relaxed animate-fade-in text-center">
             All tools run <span className="font-mono">100%</span> in your browser for total privacy.<br />
             Never upload your files. No sign up. No tracking.
           </div>
         </section>
 
-        {/* Tools Accordion - now futuristic highlight */}
+        {/* Tools Accordion - highlight, no centering, full width */}
         <section className="w-full max-w-3xl mx-auto mt-10 mb-10 px-2">
           <ToolAccordion />
         </section>
 
-        {/* Why Us */}
-        <section id="whyus" className="w-full max-w-2xl mx-auto mt-12 mb-8 px-2">
+        {/* Why Us - centered */}
+        <section id="whyus" className="w-full flex flex-col items-center max-w-2xl mx-auto mt-12 mb-8 px-2 text-center">
           <h2 className="text-xl font-bold text-white font-mono mb-4 tracking-wide">Why DocEnclave?</h2>
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex-1">
+          <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
+            <div className="flex-1 min-w-[240px]">
               <ul className="space-y-4">
-                <li className="flex items-center gap-3">
+                <li className="flex items-center gap-3 justify-center">
                   <span className="rounded-full p-2 bg-white/10 text-white/60">
-                    {/* Minimal Shield Icon (SVG inline) */}
                     <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M12 4l7 4v6c0 5-3.8 7.7-7 8-3.2-.3-7-3-7-8V8l7-4z"/></svg>
                   </span>
                   <span className="font-semibold text-white">All processing is client-side (100% privacy)</span>
                 </li>
-                <li className="flex items-center gap-3">
+                <li className="flex items-center gap-3 justify-center">
                   <span className="rounded-full p-2 bg-white/10 text-white/60">
-                    {/* Minimal Lightning Icon */}
                     <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M13 2L3 14h7v8l7-12h-7z"/></svg>
                   </span>
                   <span className="font-semibold text-white">Instant, free, no sign up ever</span>
                 </li>
-                <li className="flex items-center gap-3">
+                <li className="flex items-center gap-3 justify-center">
                   <span className="rounded-full p-2 bg-white/10 text-white/60">
-                    {/* Minimal Bar-Chart Icon */}
                     <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path stroke="#dadada" strokeWidth="2" d="M3 17v2h18v-2M7 9v6m4-9v9m4-5v5"/></svg>
                   </span>
                   <span className="font-semibold text-white">Transparent real-time usage stats</span>
                 </li>
               </ul>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[240px]">
               <WhyUsTable />
             </div>
           </div>
         </section>
       </main>
 
+      {/* Footer centered */}
       <footer className="w-full py-6 text-center text-xs text-white/60 font-mono border-t border-white/10 mt-auto">
         © {new Date().getFullYear()} docenclave — Built for the future.
       </footer>
