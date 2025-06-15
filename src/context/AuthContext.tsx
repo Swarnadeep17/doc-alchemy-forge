@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   getAuth,
@@ -14,10 +15,10 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { db, app } from "@/lib/firebase";
-import { ref, set, get, update } from "firebase/database";
+import { ref, set, get, update, push, serverTimestamp } from "firebase/database";
 import { toast } from "@/hooks/use-toast";
 
-type UserRole = "anonymous" | "free" | "premium" | "admin";
+type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
 export interface AuthUser {
   uid: string;
@@ -26,6 +27,18 @@ export interface AuthUser {
   displayName?: string | null;
   role: UserRole;
   promoCodeRedeemed?: string;
+}
+
+// EXTENDED: Promo code can be used for premium or admin, created by superadmin only
+export interface PromoCodeRecord {
+  code: string;
+  type: "premium" | "admin";
+  createdBy: string; // uid
+  createdAt: any;
+  expiresAt?: any; // optional, for future logic
+  redeemed: boolean;
+  redeemedBy?: string;
+  redeemedAt?: any;
 }
 
 interface AuthContextProps {
@@ -37,7 +50,8 @@ interface AuthContextProps {
   loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<any>;
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
-  upgradeToPremium: (promoCode: string) => Promise<void>;
+  upgradeWithPromoCode: (promoCode: string) => Promise<void>;
+  createPromoCode: (type: "premium" | "admin") => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -47,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [phoneConfResult, setPhoneConfResult] = useState<any>(null);
 
-  // Important! getAuth() takes the app object, not a string
   const auth = getAuth(app);
 
   // Get custom role from db (by user uid)
@@ -68,7 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       phoneNumber: fbUser.phoneNumber,
       displayName: fbUser.displayName,
       role,
-      // Add more if needed
     };
   };
 
@@ -94,30 +106,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   };
 
-  // Email/password signup
+  // Email/password signup (Free only, no code allowed)
   const signupWithEmail = async (email: string, password: string, promoCode?: string) => {
     setLoading(true);
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    let role: UserRole = "free";
-    let redeemedCode: string | undefined = undefined;
     if (promoCode) {
-      const codeRef = ref(db, `promoCodes/${promoCode}`);
-      const codeSnap = await get(codeRef);
-      if (codeSnap.exists() && codeSnap.val().type === "premium") {
-        role = "premium";
-        redeemedCode = promoCode;
-        await update(codeRef, { redeemedBy: (codeSnap.val().redeemedBy || []).concat(cred.user.uid) });
-      }
+      setLoading(false);
+      throw new Error("Promo codes not allowed for sign up. Use upgrade function after registration.");
     }
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
     await set(ref(db, `users/${cred.user.uid}`), {
       email,
-      role,
-      promoCodeRedeemed: redeemedCode || null,
+      role: "free",
+      promoCodeRedeemed: null,
     });
     setLoading(false);
   };
 
-  // Google signin
+  // Google signin (free only)
   const loginWithGoogle = async () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
@@ -134,17 +139,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   };
 
-  // Phone signin (step 1: start)
-  // Returns confirmationResult for step 1, void for step 2
+  // Phone signin (not changed)
   const loginWithPhone = async (
     phone: string,
     recaptchaContainerId: string,
     code?: string
   ): Promise<any> => {
     setLoading(true);
-    // Step 1: start phone signin (confirmation)
     if (!code) {
-      // CORRECT: auth is first argument
       const verifier = new RecaptchaVerifier(
         auth,
         recaptchaContainerId,
@@ -154,9 +156,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setPhoneConfResult(confirmationResult);
       setLoading(false);
       toast({ title: "Enter the code sent to your phone." });
-      return confirmationResult; // return for UI
+      return confirmationResult;
     } else {
-      // If code present, complete sign in
       if (!phoneConfResult) throw new Error("No confirmation available for verification");
       await phoneConfResult.confirm(code);
       setPhoneConfResult(null);
@@ -165,7 +166,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Phone sign in (step 2: verify)
   const verifyPhone = async (confirmationResult: any, code: string) => {
     setLoading(true);
     await confirmationResult.confirm(code);
@@ -178,22 +178,79 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
   };
 
-  // Upgrade to premium (for free user)
-  const upgradeToPremium = async (promoCode: string) => {
+  // UPGRADES: By promo code (strict role & creator logic)
+  // Only applicable after signup; no downgrades
+  const upgradeWithPromoCode = async (promoCode: string) => {
     if (!user) throw new Error("Not logged in");
+    setLoading(true);
+
     const codeRef = ref(db, `promoCodes/${promoCode}`);
     const codeSnap = await get(codeRef);
-    if (codeSnap.exists() && codeSnap.val().type === "premium") {
-      await update(ref(db, `users/${user.uid}`), {
-        role: "premium",
-        promoCodeRedeemed: promoCode,
-      });
-      await update(codeRef, { redeemedBy: (codeSnap.val().redeemedBy || []).concat(user.uid) });
-      setUser({ ...user, role: "premium", promoCodeRedeemed: promoCode });
-      toast({ title: "Upgraded to premium!" });
-    } else {
-      toast({ title: "Invalid promo code.", description: "Enter a valid code." });
+
+    if (!codeSnap.exists()) {
+      setLoading(false);
+      toast({ title: "Invalid promo code.", description: "Code not found." });
+      throw new Error("Promo code not found.");
     }
+
+    const codeData: PromoCodeRecord = codeSnap.val();
+    if (codeData.redeemed) {
+      setLoading(false);
+      toast({ title: "This code has already been used." });
+      throw new Error("Code already used.");
+    }
+
+    // Only allow upgrades by the right code type/role
+    let newRole: UserRole;
+    if (codeData.type === "admin") {
+      if (user.role !== "superadmin") {
+        setLoading(false);
+        throw new Error("Only Superadmins can upgrade to Admin.");
+      }
+      newRole = "admin";
+    } else if (codeData.type === "premium") {
+      if (user.role !== "free") {
+        setLoading(false);
+        throw new Error("Premium code can only be redeemed by Free users.");
+      }
+      newRole = "premium";
+    } else {
+      setLoading(false);
+      throw new Error("Invalid promo code type.");
+    }
+
+    await update(ref(db, `users/${user.uid}`), {
+      role: newRole,
+      promoCodeRedeemed: promoCode,
+      upgradedAt: serverTimestamp(),
+    });
+    await update(codeRef, {
+      redeemed: true,
+      redeemedBy: user.uid,
+      redeemedAt: serverTimestamp(),
+    });
+
+    setUser({ ...user, role: newRole, promoCodeRedeemed: promoCode });
+    setLoading(false);
+    toast({ title: `Upgraded to ${newRole}!` });
+  };
+
+  // Only Superadmin (your account) can create promo codes
+  // type: "premium" or "admin"
+  const createPromoCode = async (codeType: "premium" | "admin") => {
+    if (!user || user.role !== "superadmin") throw new Error("Only Superadmin can create promo codes.");
+    // Generate unique code (simple: random)
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const codeRef = ref(db, `promoCodes/${code}`);
+
+    await set(codeRef, {
+      code,
+      type: codeType,
+      createdBy: user.uid,
+      createdAt: serverTimestamp(),
+      redeemed: false,
+    });
+    return code;
   };
 
   return (
@@ -207,7 +264,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loginWithPhone,
         verifyPhone,
         logout,
-        upgradeToPremium,
+        upgradeWithPromoCode,
+        createPromoCode,
       }}
     >
       {children}
@@ -220,3 +278,10 @@ export const useAuth = () => {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };
+
+// NOTES FOR FURTHER FEATURES:
+// - UI for promo code management must limit creation to superadmin.
+// - Admin analytics dashboard can read from DB paths:
+//   /stats (usage), /users (roles and counts), /promoCodes (tracking usage, by code, by redeemer)
+// - For testing: create an initial superadmin user by manually editing the first user's role in DB.
+
