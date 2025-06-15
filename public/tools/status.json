@@ -1,0 +1,12 @@
+
+{
+  "PDF": {
+    "merge": "available",
+    "split": "coming_soon",
+    "compress": "available"
+  },
+  "Image": {
+    "convert": "available",
+    "crop": "coming_soon"
+  }
+}
