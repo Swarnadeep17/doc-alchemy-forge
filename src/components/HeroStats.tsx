@@ -1,4 +1,3 @@
-
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from "react";
@@ -97,11 +96,6 @@ export const HeroStats = () => {
         {/* Compact stats row */}
         <div className="mt-2 mb-1 flex items-center justify-center w-full">
           {content}
-        </div>
-        {/* Debug block for raw stats */}
-        <div className="mt-4 w-full max-w-lg mx-auto px-3 rounded bg-black/50 text-left text-xs text-white/80 font-mono break-words select-all">
-          <strong>Debug: Raw stats from Firebase:</strong>
-          <pre className="whitespace-pre-wrap">{JSON.stringify(stats, null, 2)}</pre>
         </div>
         <div className="text-cyan-50/90 text-base mt-7 font-medium max-w-sm mx-auto leading-relaxed animate-fade-in">
           All tools run fully in your browser for total privacy. <br />
