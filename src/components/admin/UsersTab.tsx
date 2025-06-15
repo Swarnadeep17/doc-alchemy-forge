@@ -1,8 +1,12 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
-import { ref, onValue } from "firebase/database";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ref, get, update } from "firebase/database";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, Edit } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
@@ -13,79 +17,126 @@ interface AuthUserRecord {
   role: UserRole;
   promoCodeRedeemed?: string;
   upgradedAt?: any;
+  uid?: string;
 }
 
-const roleLabels: Record<UserRole, string> = {
-  anonymous: "Anonymous",
-  free: "Free",
-  premium: "Premium",
-  admin: "Admin",
-  superadmin: "Superadmin",
-};
-
 const UsersTab = () => {
-  const [users, setUsers] = useState<Record<string, AuthUserRecord>>({});
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<AuthUserRecord[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const usersRef = ref(db, "users");
-    const unsub = onValue(usersRef, (snap) => {
-      setUsers(snap.val() || {});
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  const roleCounts: Record<UserRole, number> = {
-    anonymous: 0, free: 0, premium: 0, admin: 0, superadmin: 0
+  const handleSearch = async () => {
+    setLoading(true);
+    setResults([]);
+    // Fetch all users and filter by keyword (could optimize for large datasets)
+    const snap = await get(ref(db, "users"));
+    const allUsers: Record<string, AuthUserRecord> = snap.val() || {};
+    const filtered: AuthUserRecord[] = Object.entries(allUsers)
+      .filter(([uid, user]) => {
+        const keyword = search.trim().toLowerCase();
+        if (!keyword) return false;
+        return (
+          (user.email && user.email.toLowerCase().includes(keyword)) ||
+          (user.displayName && user.displayName.toLowerCase().includes(keyword)) ||
+          uid.toLowerCase().includes(keyword)
+        );
+      })
+      .map(([uid, user]) => ({ ...user, uid }));
+    setResults(filtered);
+    setLoading(false);
   };
-  Object.values(users).forEach(u => { roleCounts[u.role] = (roleCounts[u.role] || 0) + 1; });
+
+  const handleRoleChange = async (uid: string, newRole: "premium" | "admin") => {
+    setLoading(true);
+    await update(ref(db, `users/${uid}`), { role: newRole, upgradedAt: Date.now() });
+    toast({ title: "User role updated", description: `User is now ${newRole}` });
+    setResults(res => res.map(u => (u.uid === uid ? { ...u, role: newRole } : u)));
+    setLoading(false);
+  };
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-4 mb-8">
-        {Object.entries(roleCounts).map(([role, count]) => (
-          <Card key={role} className="flex-1 min-w-[140px] bg-gray-900 border-cyan-400/20 shadow">
-            <CardHeader>
-              <CardTitle className="text-white text-base font-mono">{roleLabels[role as UserRole]}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl text-cyan-400 font-mono">{count}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <div className="animate-fade-in">
+      <Card className="max-w-2xl mx-auto mb-6 bg-gray-900/70 shadow-lg">
+        <CardContent className="py-6 flex flex-col gap-2">
+          <div className="flex gap-2 items-center">
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleSearch(); }}
+              placeholder="Search users by email, name, or UID"
+              className="flex-1 text-white bg-gray-900 border-cyan-500/40 focus:border-cyan-400"
+              disabled={loading}
+              autoFocus
+            />
+            <Button onClick={handleSearch} disabled={loading || !search.trim()} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4">
+              <Search />
+            </Button>
+          </div>
+          <div className="text-xs text-white/60 pl-1">Search finds users by email, display name, or UID.</div>
+        </CardContent>
+      </Card>
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm bg-gray-900/60 border border-cyan-200/10 rounded">
+        <table className="min-w-full text-sm bg-gray-900/90 border border-cyan-200/10 rounded shadow">
           <thead>
             <tr>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Email</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Display Name</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Phone</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Role</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Promo Code</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Upgraded At</th>
+              <th className="py-2 px-3 text-left font-mono text-cyan-400">Change Role</th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(users).map(([uid, user]) => (
-              <tr key={uid} className="border-b border-white/5">
+            {results.map((user) => (
+              <tr key={user.uid} className="border-b border-white/5">
                 <td className="py-2 px-3 text-white/90">{user.email ?? "—"}</td>
                 <td className="py-2 px-3 text-white/80">{user.displayName ?? "—"}</td>
                 <td className="py-2 px-3 text-white/80">{user.phoneNumber ?? "—"}</td>
+                <td className="py-2 px-3 text-cyan-400 font-bold font-mono uppercase">{user.role}</td>
                 <td className="py-2 px-3">
-                  <span className="px-2 py-1 rounded text-xs font-semibold"
-                    style={{background: "#0e7490", color: "#fff"}}>{roleLabels[user.role]}</span>
-                </td>
-                <td className="py-2 px-3 text-white/80">{user.promoCodeRedeemed ?? "—"}</td>
-                <td className="py-2 px-3 text-white/80">
-                  {user.upgradedAt ? new Date(user.upgradedAt).toLocaleString() : "—"}
+                  {user.role === "superadmin" ? (
+                    <span className="text-purple-400 font-extrabold">Superadmin</span>
+                  ) : user.role === "admin" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-300 font-mono"
+                      disabled
+                    >
+                      Admin
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-cyan-500 font-mono mr-2"
+                        onClick={() => handleRoleChange(user.uid!, "premium")}
+                        disabled={user.role === "premium" || loading}
+                      >
+                        Set as Premium
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-500 font-mono"
+                        onClick={() => handleRoleChange(user.uid!, "admin")}
+                        disabled={user.role === "admin" || loading}
+                      >
+                        Set as Admin
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
+            {!results.length && (
+              <tr>
+                <td colSpan={5} className="text-center text-cyan-400 py-7">Search users above to view and edit roles.</td>
+              </tr>
+            )}
           </tbody>
         </table>
-        {loading && <div className="text-center text-cyan-400 py-8">Loading users...</div>}
       </div>
     </div>
   );

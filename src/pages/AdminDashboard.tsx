@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AnalyticsTab from "@/components/admin/AnalyticsTab";
 import PromoCodesTab from "@/components/admin/PromoCodesTab";
@@ -14,11 +14,23 @@ const TABS = [
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState("analytics");
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    // Wait for user info to load before rendering
+    setAuthChecked(true);
+  }, [user]);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black" />
+    );
+  }
 
   if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex flex-col items-center justify-center px-2">
-        <div className="w-full max-w-xl mx-auto bg-gray-900/95 border border-red-500/30 shadow-xl rounded-xl p-10 text-center">
+        <div className="w-full max-w-xl mx-auto bg-gray-900/95 border border-red-500/30 shadow-xl rounded-xl p-10 text-center animate-fade-in">
           <h1 className="text-2xl font-bold text-red-500 mb-2 font-mono tracking-widest">Unauthorized</h1>
           <div className="text-white/80">You do not have access to this page.</div>
         </div>
@@ -28,7 +40,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex flex-col items-center justify-center px-2 py-8 w-full">
-      <div className="w-full max-w-6xl mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10">
+      <div className="w-full max-w-6xl mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10 animate-fade-in">
         <h1 className="text-3xl text-white font-bold font-mono mb-6 tracking-widest uppercase text-center">Admin Dashboard</h1>
         <div className="flex gap-2 mb-8 justify-center">
           {TABS.map(tab => (
