@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   getAuth,
@@ -6,36 +5,34 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  sendSignInLinkToEmail,
-  GoogleAuthProvider,
   signInWithPopup,
+  GoogleAuthProvider,
   signInWithPhoneNumber,
   RecaptchaVerifier,
   User as FirebaseUser,
-  updateProfile,
 } from "firebase/auth";
 import { db, app } from "@/lib/firebase";
-import { ref, set, get, update, push, serverTimestamp } from "firebase/database";
+import { ref, set, get, update, serverTimestamp } from "firebase/database";
 import { toast } from "@/hooks/use-toast";
 
-type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
+// User Roles
+export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
 export interface AuthUser {
   uid: string;
   email?: string | null;
-  phoneNumber?: string | null;
-  displayName?: string | null;
   role: UserRole;
   promoCodeRedeemed?: string;
+  displayName?: string | null;
+  phoneNumber?: string | null;
 }
 
-// EXTENDED: Promo code can be used for premium or admin, created by superadmin only
 export interface PromoCodeRecord {
   code: string;
-  type: "premium" | "admin";
-  createdBy: string; // uid
+  targetRole: "premium" | "admin";
+  createdBy: string;
   createdAt: any;
-  expiresAt?: any; // optional, for future logic
+  expiresAt: any;
   redeemed: boolean;
   redeemedBy?: string;
   redeemedAt?: any;
@@ -44,14 +41,16 @@ export interface PromoCodeRecord {
 interface AuthContextProps {
   user: AuthUser | null;
   loading: boolean;
+  // Auth flows:
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  signupWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<any>;
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
-  upgradeWithPromoCode: (promoCode: string) => Promise<void>;
-  createPromoCode: (type: "premium" | "admin") => Promise<string>;
+  // Promo codes:
+  createPromoCode: (targetRole: "premium" | "admin") => Promise<string>;
+  redeemPromoCode: (code: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -63,28 +62,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const auth = getAuth(app);
 
-  // Get custom role from db (by user uid)
+  // --- Get user role
   const fetchRole = async (fbUser: FirebaseUser): Promise<UserRole> => {
     if (!fbUser) return "anonymous";
-    const userRef = ref(db, `users/${fbUser.uid}/role`);
-    const snap = await get(userRef);
-    if (snap.exists()) return snap.val();
-    return "free";
+    const snap = await get(ref(db, `users/${fbUser.uid}/role`));
+    return snap.exists() ? snap.val() : "free";
   };
 
+  // --- Format user object
   const formatUser = async (fbUser: FirebaseUser | null): Promise<AuthUser | null> => {
     if (!fbUser) return null;
     const role = await fetchRole(fbUser);
     return {
       uid: fbUser.uid,
       email: fbUser.email,
-      phoneNumber: fbUser.phoneNumber,
       displayName: fbUser.displayName,
+      phoneNumber: fbUser.phoneNumber,
       role,
     };
   };
 
-  // Auth state observer
+  // --- Auth state observer
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
@@ -99,20 +97,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // eslint-disable-next-line
   }, []);
 
-  // Email/password login
+  // --- Auth flows
   const loginWithEmail = async (email: string, password: string) => {
     setLoading(true);
     await signInWithEmailAndPassword(auth, email, password);
     setLoading(false);
   };
 
-  // Email/password signup (Free only, no code allowed)
-  const signupWithEmail = async (email: string, password: string, promoCode?: string) => {
+  const signupWithEmail = async (email: string, password: string) => {
     setLoading(true);
-    if (promoCode) {
-      setLoading(false);
-      throw new Error("Promo codes not allowed for sign up. Use upgrade function after registration.");
-    }
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await set(ref(db, `users/${cred.user.uid}`), {
       email,
@@ -122,24 +115,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   };
 
-  // Google signin (free only)
   const loginWithGoogle = async () => {
     setLoading(true);
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    // Set role if not already in db
+    // Initialize user in DB if not exists
     const userRef = ref(db, `users/${result.user.uid}`);
-    const userSnap = await get(userRef);
-    if (!userSnap.exists()) {
+    const snap = await get(userRef);
+    if (!snap.exists()) {
       await set(userRef, {
         email: result.user.email,
         role: "free",
+        promoCodeRedeemed: null,
       });
     }
     setLoading(false);
   };
 
-  // Phone signin (not changed)
   const loginWithPhone = async (
     phone: string,
     recaptchaContainerId: string,
@@ -172,19 +164,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   };
 
-  // Logout
   const logout = async () => {
     await signOut(auth);
     setUser(null);
   };
 
-  // UPGRADES: By promo code (strict role & creator logic)
-  // Only applicable after signup; no downgrades
-  const upgradeWithPromoCode = async (promoCode: string) => {
+  // --- Promo Code Management ---
+
+  // Only SuperAdmin can create codes (for Admin or Premium upgrades)
+  const createPromoCode = async (targetRole: "premium" | "admin") => {
+    if (!user || user.role !== "superadmin")
+      throw new Error("Only Superadmins can create promo codes.");
+
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+    const codeRef = ref(db, `promoCodes/${code}`);
+
+    await set(codeRef, {
+      code,
+      targetRole,
+      createdBy: user.uid,
+      createdAt: serverTimestamp(),
+      expiresAt,
+      redeemed: false,
+      redeemedBy: null,
+      redeemedAt: null,
+    });
+
+    toast({ title: `Promo code created: ${code}`, description: `For ${targetRole} (expires in 24h)` });
+    return code;
+  };
+
+  // Redeem promo code to become Admin or Premium
+  const redeemPromoCode = async (code: string) => {
     if (!user) throw new Error("Not logged in");
     setLoading(true);
 
-    const codeRef = ref(db, `promoCodes/${promoCode}`);
+    const codeRef = ref(db, `promoCodes/${code}`);
     const codeSnap = await get(codeRef);
 
     if (!codeSnap.exists()) {
@@ -194,34 +210,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const codeData: PromoCodeRecord = codeSnap.val();
-    if (codeData.redeemed) {
+    if (codeData.redeemed || (codeData.expiresAt && Date.now() > codeData.expiresAt)) {
       setLoading(false);
-      toast({ title: "This code has already been used." });
-      throw new Error("Code already used.");
+      toast({ title: "Promo code expired or already used." });
+      throw new Error("Promo code expired or already used.");
     }
 
-    // Only allow upgrades by the right code type/role
-    let newRole: UserRole;
-    if (codeData.type === "admin") {
-      if (user.role !== "superadmin") {
-        setLoading(false);
-        throw new Error("Only Superadmins can upgrade to Admin.");
-      }
+    // Only allow upgrades as per code:
+    let newRole: UserRole | undefined;
+    if (codeData.targetRole === "admin" && user.role === "free") {
       newRole = "admin";
-    } else if (codeData.type === "premium") {
-      if (user.role !== "free") {
-        setLoading(false);
-        throw new Error("Premium code can only be redeemed by Free users.");
-      }
+    } else if (codeData.targetRole === "premium" && user.role === "free") {
       newRole = "premium";
     } else {
       setLoading(false);
-      throw new Error("Invalid promo code type.");
+      toast({ title: "Cannot upgrade with this code." });
+      throw new Error("Invalid upgrade path.");
     }
 
     await update(ref(db, `users/${user.uid}`), {
       role: newRole,
-      promoCodeRedeemed: promoCode,
+      promoCodeRedeemed: code,
       upgradedAt: serverTimestamp(),
     });
     await update(codeRef, {
@@ -230,27 +239,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       redeemedAt: serverTimestamp(),
     });
 
-    setUser({ ...user, role: newRole, promoCodeRedeemed: promoCode });
+    setUser({ ...user, role: newRole, promoCodeRedeemed: code });
     setLoading(false);
     toast({ title: `Upgraded to ${newRole}!` });
-  };
-
-  // Only Superadmin (your account) can create promo codes
-  // type: "premium" or "admin"
-  const createPromoCode = async (codeType: "premium" | "admin") => {
-    if (!user || user.role !== "superadmin") throw new Error("Only Superadmin can create promo codes.");
-    // Generate unique code (simple: random)
-    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const codeRef = ref(db, `promoCodes/${code}`);
-
-    await set(codeRef, {
-      code,
-      type: codeType,
-      createdBy: user.uid,
-      createdAt: serverTimestamp(),
-      redeemed: false,
-    });
-    return code;
   };
 
   return (
@@ -264,8 +255,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loginWithPhone,
         verifyPhone,
         logout,
-        upgradeWithPromoCode,
         createPromoCode,
+        redeemPromoCode,
       }}
     >
       {children}
@@ -284,4 +275,3 @@ export const useAuth = () => {
 // - Admin analytics dashboard can read from DB paths:
 //   /stats (usage), /users (roles and counts), /promoCodes (tracking usage, by code, by redeemer)
 // - For testing: create an initial superadmin user by manually editing the first user's role in DB.
-
