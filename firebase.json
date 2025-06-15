@@ -9,6 +9,17 @@
     ],
     "rewrites": [
       { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
+      {
+        "source": "/tools/status.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      }
     ]
   }
 }
