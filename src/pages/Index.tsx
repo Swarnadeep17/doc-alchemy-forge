@@ -1,7 +1,10 @@
-
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import Header from "@/components/Header";
+import { HeroStats } from "@/components/HeroStats";
+import { ToolAccordion } from "@/components/ToolAccordion";
+import { WhyUsTable } from "@/components/WhyUsTable";
 
 const LogoFuturistic = () => (
   <div className="flex flex-col items-center justify-center select-none">
@@ -162,45 +165,15 @@ const Index = () => {
   const pdfStats = stats?.tools?.PDF || {};
   // * Futuristic scroll background
   return (
-    <div className="min-h-screen w-full bg-gradient-to-tr from-black via-[#20232b] to-black flex flex-col items-center justify-start dark font-sans overflow-x-hidden selection:bg-cyan-300/40">
-      <header className="w-full max-w-2xl flex flex-col items-center mx-auto pt-10 md:pt-14 pb-4">
-        <LogoFuturistic />
-        <TaglineFuturistic />
-      </header>
-
-      <section className="w-full max-w-lg mx-auto px-2">
-        {/* Stats: floats/overlays hero with a glass tile */}
-        <div className="w-full flex gap-4 justify-center mt-10 mb-6">
-          <StatTile label="Visits" value={overall.visits} loading={loading} highlight />
-          <StatTile label="Downloads" value={overall.downloads} loading={loading} />
-        </div>
-      </section>
-
-      <section className="w-full max-w-xl mx-auto px-2 py-4 md:py-8">
-        <div className="text-cyan-200 text-xs font-mono mb-3 uppercase tracking-wide">Tools</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {toolsConfig.map(category =>
-            category.tools.map(t => (
-              <ToolCard
-                key={t.key}
-                name={t.name}
-                description={t.description}
-                soon={!!t.soon}
-                stats={
-                  category.category === "PDF"
-                    ? pdfStats[t.key]
-                    : undefined
-                }
-              />
-            ))
-          )}
-        </div>
-      </section>
-
-      <footer className="w-full pt-8 pb-4 flex flex-col items-center">
-        <div className="text-xs text-cyan-800/80 drop-shadow-cyan tracking-widest uppercase font-semibold font-mono opacity-70 animate-fade-in text-center">
-          © {new Date().getFullYear()} DOCENCLAVE &mdash; The Future Is Yours
-        </div>
+    <div className="min-h-screen w-full bg-gradient-to-br from-black via-gray-900 to-black text-white flex flex-col">
+      <Header />
+      <main className="flex-1 flex flex-col">
+        <HeroStats />
+        <ToolAccordion />
+        <WhyUsTable />
+      </main>
+      <footer className="w-full py-6 text-center text-xs text-white/50 font-mono">
+        © {new Date().getFullYear()} docenclave — Built for the future.
       </footer>
     </div>
   );
