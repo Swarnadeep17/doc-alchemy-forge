@@ -120,10 +120,6 @@ const Index = () => {
             Privacy-first Document Tools
           </h1>
           <HeroStats />
-          <div className="text-gray-200 text-base mt-2 font-medium max-w-lg mx-auto leading-relaxed animate-fade-in text-center">
-            All tools run <span className="font-mono">100%</span> in your browser for total privacy.<br />
-            Never upload your files. No sign up. No tracking.
-          </div>
         </section>
 
         {/* ---- USP Cards Section ---- */}
