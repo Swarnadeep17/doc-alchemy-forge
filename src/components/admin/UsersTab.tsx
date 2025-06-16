@@ -24,31 +24,52 @@ interface AuthUserRecord {
 }
 
 const UsersTab = () => {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<AuthUserRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [adminNames, setAdminNames] = useState<Record<string, string>>({});
 
+  // Helper function to check what roles current user can assign
+  const getAvailableRoles = (currentUserRole: UserRole): UserRole[] => {
+    if (currentUserRole === "superadmin") {
+      return ["free", "premium", "admin"];
+    } else if (currentUserRole === "admin") {
+      return ["free", "premium"];
+    }
+    return [];
+  };
+
   const handleSearch = async () => {
     setLoading(true);
     setResults([]);
-    // Fetch all users and filter by keyword (could optimize for large datasets)
-    const snap = await get(ref(db, "users"));
-    const allUsers: Record<string, AuthUserRecord> = snap.val() || {};
-    const filtered: AuthUserRecord[] = Object.entries(allUsers)
-      .filter(([uid, user]) => {
-        const keyword = search.trim().toLowerCase();
-        if (!keyword) return false;
-        return (
-          (user.email && user.email.toLowerCase().includes(keyword)) ||
-          (user.displayName && user.displayName.toLowerCase().includes(keyword)) ||
-          uid.toLowerCase().includes(keyword)
-        );
-      })
-      .map(([uid, user]) => ({ ...user, uid }));
-    setResults(filtered);
-    setLoading(false);
+    
+    try {
+      // Fetch all users and filter by keyword (could optimize for large datasets)
+      const snap = await get(ref(db, "users"));
+      const allUsers: Record<string, AuthUserRecord> = snap.val() || {};
+      const filtered: AuthUserRecord[] = Object.entries(allUsers)
+        .filter(([uid, user]) => {
+          const keyword = search.trim().toLowerCase();
+          if (!keyword) return false;
+          return (
+            (user.email && user.email.toLowerCase().includes(keyword)) ||
+            (user.displayName && user.displayName.toLowerCase().includes(keyword)) ||
+            uid.toLowerCase().includes(keyword)
+          );
+        })
+        .map(([uid, user]) => ({ ...user, uid }));
+      setResults(filtered);
+    } catch (error: any) {
+      console.error("Error searching users:", error);
+      toast({ 
+        title: "Search Failed", 
+        description: error.message || "Permission denied. Please check your admin privileges.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch admin names for the "Last Modified By" column
@@ -79,23 +100,55 @@ const UsersTab = () => {
     }
   }, [results]);
 
-  const handleRoleChange = async (uid: string, newRole: "premium" | "admin") => {
-    if (!user) return;
+  const handleRoleChange = async (uid: string, newRole: UserRole) => {
+    if (!currentUser) return;
+    
+    // Check permissions based on current user role
+    const canChangeRole = (currentUserRole: UserRole, targetRole: UserRole): boolean => {
+      if (currentUserRole === "superadmin") {
+        // Superadmin can change to admin, premium, free (but not superadmin)
+        return ["admin", "premium", "free"].includes(targetRole);
+      } else if (currentUserRole === "admin") {
+        // Admin can change to premium, free (but not admin or superadmin)
+        return ["premium", "free"].includes(targetRole);
+      }
+      return false;
+    };
+
+    if (!canChangeRole(currentUser.role, newRole)) {
+      toast({ 
+        title: "Permission Denied", 
+        description: `You cannot assign ${newRole} role.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
-    await update(ref(db, `users/${uid}`), { 
-      role: newRole, 
-      upgradedAt: Date.now(),
-      lastModifiedBy: user.uid,
-      lastModifiedAt: Date.now()
-    });
-    toast({ title: "User role updated", description: `User is now ${newRole}` });
-    setResults(res => res.map(u => (u.uid === uid ? { 
-      ...u, 
-      role: newRole, 
-      lastModifiedBy: user.uid,
-      lastModifiedAt: Date.now()
-    } : u)));
-    setLoading(false);
+    try {
+      await update(ref(db, `users/${uid}`), { 
+        role: newRole, 
+        upgradedAt: Date.now(),
+        lastModifiedBy: currentUser.uid,
+        lastModifiedAt: Date.now()
+      });
+      toast({ title: "User role updated", description: `User is now ${newRole}` });
+      setResults(res => res.map(u => (u.uid === uid ? { 
+        ...u, 
+        role: newRole, 
+        lastModifiedBy: currentUser.uid,
+        lastModifiedAt: Date.now()
+      } : u)));
+    } catch (error: any) {
+      console.error("Error updating user role:", error);
+      toast({ 
+        title: "Update Failed", 
+        description: error.message || "Failed to update user role.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -116,7 +169,19 @@ const UsersTab = () => {
               <Search />
             </Button>
           </div>
-          <div className="text-xs text-white/60 pl-1">Search finds users by email, display name, or UID.</div>
+          <div className="text-xs text-white/60 pl-1">
+            Search finds users by email, display name, or UID.
+            {currentUser?.role === "admin" && (
+              <div className="mt-1 text-yellow-400">
+                As an Admin, you can change users to Free or Premium roles only.
+              </div>
+            )}
+            {currentUser?.role === "superadmin" && (
+              <div className="mt-1 text-green-400">
+                As a Superadmin, you can change users to Free, Premium, or Admin roles.
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
       <div className="overflow-x-auto">
@@ -153,36 +218,25 @@ const UsersTab = () => {
                 <td className="py-2 px-3">
                   {user.role === "superadmin" ? (
                     <span className="text-purple-400 font-extrabold">Superadmin</span>
-                  ) : user.role === "admin" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-blue-300 font-mono"
-                      disabled
-                    >
-                      Admin
-                    </Button>
                   ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-cyan-500 font-mono mr-2"
-                        onClick={() => handleRoleChange(user.uid!, "premium")}
-                        disabled={user.role === "premium" || loading}
-                      >
-                        Set as Premium
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-blue-500 font-mono"
-                        onClick={() => handleRoleChange(user.uid!, "admin")}
-                        disabled={user.role !== "free" && user.role !== "premium"}
-                      >
-                        Set as Admin
-                      </Button>
-                    </>
+                    <div className="flex flex-wrap gap-1">
+                      {currentUser && getAvailableRoles(currentUser.role).map((role) => (
+                        <Button
+                          key={role}
+                          size="sm"
+                          variant="outline"
+                          className={`font-mono text-xs ${
+                            role === "free" ? "border-gray-500" :
+                            role === "premium" ? "border-cyan-500" :
+                            role === "admin" ? "border-blue-500" : "border-gray-400"
+                          }`}
+                          onClick={() => handleRoleChange(user.uid!, role)}
+                          disabled={user.role === role || loading}
+                        >
+                          {role.charAt(0).toUpperCase() + role.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
                   )}
                 </td>
               </tr>
