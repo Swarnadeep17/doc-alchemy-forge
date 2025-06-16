@@ -10,33 +10,36 @@ import { Loader, BarChart2, Zap, HelpCircle } from "lucide-react";
 const COLORS = ["#06b6d4", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6"];
 
 const ToolDetailTab = () => {
-  const { stats, loading, toolStats } = useLiveStatsEnhanced();
+  const { loading, toolStats, getToolOptions, toolStatus } = useLiveStatsEnhanced();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
-  const categories = useMemo(() => {
-    return [...new Set(toolStats.map(t => t.category))];
-  }, [toolStats]);
-
+  const availableCategories = useMemo(() => {
+    if (!toolStatus) return [];
+    return Object.keys(toolStatus);
+  }, [toolStatus]);
+  
   const toolsInCategory = useMemo(() => {
-    if (!stats?.tools) return [];
+    if (!toolStatus || !selectedTool) return [];
     const category = toolStats.find(t => t.name === selectedTool)?.category;
     if (!category) return [];
-    return Object.keys(stats.tools[category] || {});
-  }, [selectedTool, stats?.tools, toolStats]);
-  
-  // Set default tool on load
+    return Object.entries(toolStatus[category])
+        .filter(([, status]) => status === 'available')
+        .map(([toolName]) => toolName);
+  }, [selectedTool, toolStatus, toolStats]);
+
+  // Set default tool on load from available tools
   useEffect(() => {
     if (toolStats.length > 0 && !selectedTool) {
       setSelectedTool(toolStats[0].name);
     }
   }, [toolStats, selectedTool]);
 
-  const toolData = useMemo(() => {
+  const toolOptionsData = useMemo(() => {
     if (!selectedTool) return null;
-    const category = toolStats.find(t=>t.name === selectedTool)?.category;
+    const category = toolStats.find(t => t.name === selectedTool)?.category;
     if (!category) return null;
-    return stats?.tools?.[category]?.[selectedTool];
-  }, [selectedTool, stats?.tools, toolStats]);
+    return getToolOptions(category, selectedTool);
+  }, [selectedTool, toolStats, getToolOptions]);
 
   if (loading) {
     return (
@@ -61,15 +64,16 @@ const ToolDetailTab = () => {
             <Select 
               value={toolStats.find(t => t.name === selectedTool)?.category || ""}
               onValueChange={(category) => {
-                const firstToolInCategory = Object.keys(stats.tools[category] || {})[0];
-                setSelectedTool(firstToolInCategory);
+                  if(!toolStatus) return;
+                  const firstToolInCategory = Object.keys(toolStatus[category]).find(t => toolStatus[category][t] === 'available');
+                  setSelectedTool(firstToolInCategory || null);
               }}
             >
               <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-gray-200 hover:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/50 transition-colors">
                 <SelectValue placeholder="Select a category..." />
               </SelectTrigger>
               <SelectContent className="bg-gray-950 border-gray-700 text-gray-200">
-                {categories.map(cat => <SelectItem key={cat} value={cat} className="capitalize focus:bg-cyan-800/50">{cat}</SelectItem>)}
+                {availableCategories.map(cat => <SelectItem key={cat} value={cat} className="capitalize focus:bg-cyan-800/50">{cat}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -87,9 +91,9 @@ const ToolDetailTab = () => {
         </CardContent>
       </Card>
       
-      {selectedTool && toolData?.options ? (
+      {selectedTool && toolOptionsData ? (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          {Object.entries(toolData.options).map(([optionName, optionValues], index) => (
+          {Object.entries(toolOptionsData).map(([optionName, optionValues], index) => (
             <Card key={optionName} className="bg-gray-950/50 border border-white/10">
               <CardHeader><CardTitle className="text-lg text-white capitalize">{optionName.replace(/([A-Z])/g, ' $1')}</CardTitle></CardHeader>
               <CardContent>
