@@ -1,7 +1,7 @@
-
 import { LogoHorizontal } from "@/components/LogoHorizontal";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import AnimatedAuthButton from "@/components/AnimatedAuthButton";
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -52,24 +52,8 @@ const Header = () => {
           </Button>
         )}
 
-        {!user && (
-          <>
-            <Button
-              variant="ghost"
-              className="text-white hidden sm:inline border border-white/20 px-4 hover:bg-white/10 ml-2"
-              asChild
-            >
-              <Link to="/login">Login</Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="text-black bg-white font-semibold border border-white/30 hover:bg-gray-200 ml-2"
-              asChild
-            >
-              <Link to="/signup">Sign Up</Link>
-            </Button>
-          </>
-        )}
+        {!user && <AnimatedAuthButton />}
+        
         {user && (
           <>
             <Button
