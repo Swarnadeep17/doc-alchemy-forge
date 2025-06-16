@@ -1,13 +1,14 @@
-
-import React, { useEffect, useMemo, useState } from "react";
-import { db } from "@/lib/firebase";
-import { ref, get, update } from "firebase/database";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Edit } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import React, { useEffect, useState } from "react";
+import { db } from "../../lib/firebase";
+import { ref, get, update, DatabaseReference } from "firebase/database";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { type FC } from "react";
+import "@/types/react";
+import { Search } from "lucide-react";
+import { toast } from "../../hooks/use-toast";
+import { useAuth } from "../../context/AuthContext";
 
 export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
@@ -17,13 +18,18 @@ export interface AuthUserRecord {
   phoneNumber?: string | null;
   role: UserRole;
   promoCodeRedeemed?: string;
-  upgradedAt?: any;
+  upgradedAt?: number;
   lastModifiedBy?: string;
-  lastModifiedAt?: any;
+  lastModifiedAt?: number;
   uid?: string;
 }
 
-const UsersTab = () => {
+interface AdminNameRecord {
+  email?: string | null;
+  displayName?: string | null;
+}
+
+const UsersTab: FC = () => {
   const { user: currentUser } = useAuth();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<AuthUserRecord[]>([]);
@@ -60,14 +66,14 @@ const UsersTab = () => {
 
       const keyword = search.trim().toLowerCase();
       
-      // Fetch all users and filter by keyword
       const snap = await get(ref(db, "users"));
       if (!snap.exists()) {
         setResults([]);
         return;
       }
 
-      const allUsers: Record<string, AuthUserRecord> = snap.val() || {};
+      const data = snap.val();
+      const allUsers: Record<string, AuthUserRecord> = typeof data === 'object' && data !== null ? data : {};
       const filtered: AuthUserRecord[] = Object.entries(allUsers)
         .filter(([uid, user]) => {
           // Skip if the user is a superadmin (they can't be modified)
@@ -117,9 +123,8 @@ const UsersTab = () => {
         try {
           const adminRef = ref(db, `users/${adminId}`);
           const adminSnap = await get(adminRef);
-          if (adminSnap.exists()) {
-            const adminData = adminSnap.val() as AuthUserRecord;
-            names[adminId] = adminData.email || adminData.displayName || adminId;
+          const adminData = adminSnap.exists() ? (adminSnap.val() as AdminNameRecord) : null;
+          names[adminId] = adminData?.email || adminData?.displayName || adminId;
           } else {
             names[adminId] = adminId;
           }

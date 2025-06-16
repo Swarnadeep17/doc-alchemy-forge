@@ -1,13 +1,12 @@
-
-import React, { useEffect, useMemo, useState } from "react";
-import { db } from "@/lib/firebase";
-import { ref, get, update } from "firebase/database";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Edit } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useEffect, useState } from "react";
+import { db } from "../../lib/firebase";
+import { ref, get, update, DatabaseReference } from "firebase/database";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { Search } from "lucide-react";
+import { toast } from "../../hooks/use-toast";
+import { useAuth } from "../../context/AuthContext";
 
 export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
@@ -17,9 +16,9 @@ export interface AuthUserRecord {
   phoneNumber?: string | null;
   role: UserRole;
   promoCodeRedeemed?: string;
-  upgradedAt?: any;
+  upgradedAt?: number;
   lastModifiedBy?: string;
-  lastModifiedAt?: any;
+  lastModifiedAt?: number;
   uid?: string;
 }
 
@@ -60,7 +59,6 @@ const UsersTab = () => {
 
       const keyword = search.trim().toLowerCase();
       
-      // Fetch all users and filter by keyword
       const snap = await get(ref(db, "users"));
       if (!snap.exists()) {
         setResults([]);
