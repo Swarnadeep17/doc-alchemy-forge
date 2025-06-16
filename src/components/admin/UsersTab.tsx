@@ -1,13 +1,16 @@
+// src/components/admin/UsersTab.tsx
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { ref, get, update } from "firebase/database";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Edit } from "lucide-react";
+import { Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
@@ -17,11 +20,19 @@ export interface AuthUserRecord {
   phoneNumber?: string | null;
   role: UserRole;
   promoCodeRedeemed?: string;
-  upgradedAt?: any;
+  upgradedAt?: number;
   lastModifiedBy?: string;
-  lastModifiedAt?: any;
+  lastModifiedAt?: number;
   uid?: string;
 }
+
+const roleStyles = {
+  free: "bg-gray-700/70 text-gray-300 border-gray-600",
+  premium: "bg-purple-800/50 text-purple-300 border-purple-600",
+  admin: "bg-blue-800/50 text-blue-300 border-blue-600",
+  superadmin: "bg-fuchsia-800/60 text-fuchsia-300 border-fuchsia-500",
+  anonymous: "bg-gray-800/50 text-gray-500 border-gray-700",
+};
 
 const UsersTab = () => {
   const { user: currentUser } = useAuth();
@@ -30,54 +41,32 @@ const UsersTab = () => {
   const [loading, setLoading] = useState(false);
   const [adminNames, setAdminNames] = useState<Record<string, string>>({});
 
-  // Helper function to check what roles current user can assign
   const getAvailableRoles = (currentUserRole: UserRole): UserRole[] => {
-    if (currentUserRole === "superadmin") {
-      return ["free", "premium", "admin"];
-    } else if (currentUserRole === "admin") {
-      return ["free", "premium"];
-    }
+    if (currentUserRole === "superadmin") return ["free", "premium", "admin"];
+    if (currentUserRole === "admin") return ["free", "premium"];
     return [];
   };
 
   const handleSearch = async () => {
     if (!search.trim()) {
-      toast({ 
-        title: "Invalid Search", 
-        description: "Please enter a search term",
-        variant: "destructive"
-      });
+      toast({ title: "Invalid Search", description: "Please enter a search term.", variant: "destructive" });
       return;
     }
-
     setLoading(true);
     setResults([]);
-    
     try {
-      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
-        throw new Error("Unauthorized access");
-      }
-
+      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) throw new Error("Unauthorized access");
       const keyword = search.trim().toLowerCase();
-      
-      // Fetch all users and filter by keyword
       const snap = await get(ref(db, "users"));
       if (!snap.exists()) {
         setResults([]);
         return;
       }
-
-      const allUsers: Record<string, AuthUserRecord> = snap.val() || {};
-      const filtered: AuthUserRecord[] = Object.entries(allUsers)
+      const allUsers = snap.val() as Record<string, AuthUserRecord>;
+      const filtered = Object.entries(allUsers)
         .filter(([uid, user]) => {
-          // Skip if the user is a superadmin (they can't be modified)
-          if (user.role === "superadmin" as UserRole) return false;
-          
-          // For admin users, only show users they can modify (free and premium)
-          if (currentUser.role === "admin" && (user.role === "admin" || user.role === "superadmin")) {
-            return false;
-          }
-
+          if (user.role === "superadmin") return false;
+          if (currentUser.role === "admin" && (user.role === "admin" || user.role === "superadmin")) return false;
           return (
             (user.email && user.email.toLowerCase().includes(keyword)) ||
             (user.displayName && user.displayName.toLowerCase().includes(keyword)) ||
@@ -85,110 +74,66 @@ const UsersTab = () => {
           );
         })
         .map(([uid, user]) => ({ ...user, uid }));
-
       setResults(filtered);
-      
-      if (filtered.length === 0) {
-        toast({ 
-          title: "No Results", 
-          description: "No users found matching your search criteria",
-          variant: "destructive"
-        });
-      }
+      if (filtered.length === 0) toast({ title: "No Results", description: "No users found matching your search.", variant: "destructive" });
     } catch (error: any) {
-      console.error("Error searching users:", error);
-      toast({ 
-        title: "Search Failed", 
-        description: error.message || "Permission denied. Please check your admin privileges.",
-        variant: "destructive"
-      });
+      toast({ title: "Search Failed", description: error.message || "Permission denied.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch admin names for the "Last Modified By" column
   useEffect(() => {
     const fetchAdminNames = async () => {
       const adminIds = [...new Set(results.map(u => u.lastModifiedBy).filter(Boolean))];
-      
       const names: Record<string, string> = {};
       for (const adminId of adminIds) {
         try {
-          const adminRef = ref(db, `users/${adminId}`);
-          const adminSnap = await get(adminRef);
+          const adminSnap = await get(ref(db, `users/${adminId}`));
           if (adminSnap.exists()) {
-            const adminData = adminSnap.val() as AuthUserRecord;
+            const adminData = adminSnap.val();
             names[adminId] = adminData.email || adminData.displayName || adminId;
           } else {
             names[adminId] = adminId;
           }
-        } catch (error) {
-          names[adminId] = adminId;
-        }
+        } catch (error) { names[adminId] = adminId; }
       }
       setAdminNames(names);
     };
-
-    if (results.length > 0) {
-      fetchAdminNames();
-    }
+    if (results.length > 0) fetchAdminNames();
   }, [results]);
 
   const handleRoleChange = async (uid: string, newRole: UserRole) => {
     if (!currentUser) return;
-    
-    // Check permissions based on current user role
-    const canChangeRole = (currentUserRole: UserRole, targetRole: UserRole): boolean => {
-      if (currentUserRole === "superadmin") {
-        // Superadmin can change to admin, premium, free (but not superadmin)
-        return ["admin", "premium", "free"].includes(targetRole);
-      } else if (currentUserRole === "admin") {
-        // Admin can change to premium, free (but not admin or superadmin)
-        return ["premium", "free"].includes(targetRole);
-      }
-      return false;
-    };
-
-    if (!canChangeRole(currentUser.role, newRole)) {
-      toast({ 
-        title: "Permission Denied", 
-        description: `You cannot assign ${newRole} role.`,
-        variant: "destructive"
-      });
+    const canChangeRole = getAvailableRoles(currentUser.role).includes(newRole);
+    if (!canChangeRole) {
+      toast({ title: "Permission Denied", description: `You cannot assign ${newRole} role.`, variant: "destructive" });
       return;
     }
-
     setLoading(true);
     try {
-      await update(ref(db, `users/${uid}`), { 
-        role: newRole, 
+      await update(ref(db, `users/${uid}`), {
+        role: newRole,
         upgradedAt: Date.now(),
         lastModifiedBy: currentUser.uid,
         lastModifiedAt: Date.now()
       });
       toast({ title: "User role updated", description: `User is now ${newRole}` });
-      setResults(res => res.map(u => (u.uid === uid ? { 
-        ...u, 
-        role: newRole, 
-        lastModifiedBy: currentUser.uid,
-        lastModifiedAt: Date.now()
-      } : u)));
+      setResults(res => res.map(u => (u.uid === uid ? { ...u, role: newRole, lastModifiedBy: currentUser.uid, lastModifiedAt: Date.now() } : u)));
     } catch (error: any) {
-      console.error("Error updating user role:", error);
-      toast({ 
-        title: "Update Failed", 
-        description: error.message || "Failed to update user role.",
-        variant: "destructive"
-      });
+      toast({ title: "Update Failed", description: error.message || "Failed to update user role.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="animate-fade-in">
-      <Card className="max-w-2xl mx-auto mb-6 bg-gray-900/70 shadow-lg">
+    <div className="animate-fade-in space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold text-white">User Management</h2>
+        <p className="text-sm text-gray-400 mt-1">Search for users and manage their roles and permissions.</p>
+      </div>
+      <Card className="bg-gray-950/50 border border-white/10">
         <CardContent className="py-6 flex flex-col gap-2">
           <div className="flex gap-2 items-center">
             <Input
@@ -196,7 +141,7 @@ const UsersTab = () => {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") handleSearch(); }}
               placeholder="Search users by email, name, or UID"
-              className="flex-1 text-white bg-gray-900 border-cyan-500/40 focus:border-cyan-400"
+              className="flex-1 text-white bg-gray-900 border-white/20 focus:border-cyan-400 focus:ring-cyan-400"
               disabled={loading}
               autoFocus
             />
@@ -204,86 +149,70 @@ const UsersTab = () => {
               <Search />
             </Button>
           </div>
-          <div className="text-xs text-white/60 pl-1">
-            Search finds users by email, display name, or UID.
-            {currentUser?.role === "admin" && (
-              <div className="mt-1 text-yellow-400">
-                As an Admin, you can change users to Free or Premium roles only.
-              </div>
-            )}
-            {currentUser?.role === "superadmin" && (
-              <div className="mt-1 text-green-400">
-                As a Superadmin, you can change users to Free, Premium, or Admin roles.
-              </div>
-            )}
+        </CardContent>
+      </Card>
+      <Card className="bg-gray-950/50 border border-white/10">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b-white/10">
+                  <TableHead className="text-gray-300 uppercase text-xs tracking-wider">User</TableHead>
+                  <TableHead className="text-gray-300 uppercase text-xs tracking-wider">Role</TableHead>
+                  <TableHead className="text-gray-300 uppercase text-xs tracking-wider">Last Modified</TableHead>
+                  <TableHead className="text-gray-300 uppercase text-xs tracking-wider">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.map((user) => (
+                  <TableRow key={user.uid} className="border-b-white/10">
+                    <TableCell>
+                      <p className="font-medium text-gray-200">{user.displayName || user.email}</p>
+                      <p className="text-xs text-gray-400">{user.displayName ? user.email : user.uid}</p>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn("px-2 py-1 rounded-md text-xs font-bold font-mono uppercase border", roleStyles[user.role])}>
+                        {user.role}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-400">
+                      {user.lastModifiedBy ? (
+                        <>
+                          <p className="text-gray-300">{adminNames[user.lastModifiedBy] || user.lastModifiedBy}</p>
+                          <p>{new Date(user.lastModifiedAt).toLocaleString()}</p>
+                        </>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {getAvailableRoles(currentUser.role).map((role) => (
+                          <Button
+                            key={role}
+                            size="sm"
+                            variant={user.role === role ? "default" : "outline"}
+                            className={cn("font-mono text-xs", user.role !== role && "border-gray-600 text-gray-300 hover:bg-white/10 hover:text-white", user.role === role && "bg-cyan-600 hover:bg-cyan-700")}
+                            onClick={() => handleRoleChange(user.uid, role)}
+                            disabled={user.role === role || loading}
+                          >
+                            {role}
+                          </Button>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!results.length && (
+                  <TableRow className="border-none hover:bg-transparent">
+                    <TableCell colSpan={4} className="h-24 text-center text-gray-500">
+                      Search for a user to begin.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm bg-gray-900/90 border border-cyan-200/10 rounded shadow">
-          <thead>
-            <tr>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Email</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Display Name</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Phone</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Role</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Last Modified By</th>
-              <th className="py-2 px-3 text-left font-mono text-cyan-400">Change Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((user) => (
-              <tr key={user.uid} className="border-b border-white/5">
-                <td className="py-2 px-3 text-white/90">{user.email ?? "—"}</td>
-                <td className="py-2 px-3 text-white/80">{user.displayName ?? "—"}</td>
-                <td className="py-2 px-3 text-white/80">{user.phoneNumber ?? "—"}</td>
-                <td className="py-2 px-3 text-cyan-400 font-bold font-mono uppercase">{user.role}</td>
-                <td className="py-2 px-3 text-white/80 text-xs">
-                  {user.lastModifiedBy ? (
-                    <div>
-                      <div>{adminNames[user.lastModifiedBy] || user.lastModifiedBy}</div>
-                      {user.lastModifiedAt && (
-                        <div className="text-white/50">
-                          {new Date(user.lastModifiedAt).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  ) : "—"}
-                </td>
-                <td className="py-2 px-3">
-                  {user.role === "superadmin" ? (
-                    <span className="text-purple-400 font-extrabold">Superadmin</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {currentUser && getAvailableRoles(currentUser.role).map((role) => (
-                        <Button
-                          key={role}
-                          size="sm"
-                          variant="outline"
-                          className={`font-mono text-xs ${
-                            role === "free" ? "border-gray-500" :
-                            role === "premium" ? "border-cyan-500" :
-                            role === "admin" ? "border-blue-500" : "border-gray-400"
-                          }`}
-                          onClick={() => handleRoleChange(user.uid!, role)}
-                          disabled={user.role === role || loading}
-                        >
-                          {role.charAt(0).toUpperCase() + role.slice(1)}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {!results.length && (
-              <tr>
-                <td colSpan={6} className="text-center text-cyan-400 py-7">Search users above to view and edit roles.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };
