@@ -1,21 +1,17 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
-    
     "users": {
-      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'superadmin')",
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')",
+      ".write": false,
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'superadmin')",
-        ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() == 'superadmin' && (newData.child('role').val() == 'admin' || newData.child('role').val() == 'premium' || newData.child('role').val() == 'free')) || (root.child('users').child(auth.uid).child('role').val() == 'admin' && (newData.child('role').val() == 'premium' || newData.child('role').val() == 'free')))"
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')",
+        ".write": "auth != null && ($uid === auth.uid || (root.child('users').child(auth.uid).child('role').val() === 'superadmin' && (newData.child('role').val() === 'admin' || newData.child('role').val() === 'premium' || newData.child('role').val() === 'free')) || (root.child('users').child(auth.uid).child('role').val() === 'admin' && (newData.child('role').val() === 'premium' || newData.child('role').val() === 'free')))"
       }
     },
-    
     "promoCodes": {
-      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'superadmin')",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'superadmin'"
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'superadmin')",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'superadmin'"
     },
-    
     "stats": {
       ".read": true,
       ".write": true
