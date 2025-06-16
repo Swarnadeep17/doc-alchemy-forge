@@ -1,25 +1,25 @@
-import { useEffect, useState } from "react";
+// src/hooks/useLiveStatsEnhanced.ts
+
+import { useEffect, useState, useMemo } from "react";
 import { db } from "../lib/firebase";
 import { ref, onValue } from "firebase/database";
 
+// --- Type Definitions ---
+
+interface ToolStats {
+  visits?: number;
+  downloads?: number;
+}
+
 interface TimeBasedStats {
-  [key: string]: {
-    visits: number;
-    downloads: number;
-  };
+  [key: string]: ToolStats; // e.g., "2024-07-31": { visits: 10, downloads: 5 }
 }
 
 interface EnhancedStats {
-  overall: {
-    visits: number;
-    downloads: number;
-  };
+  overall: ToolStats;
   tools: {
     [category: string]: {
-      [tool: string]: {
-        visits: number;
-        downloads: number;
-      };
+      [tool: string]: ToolStats;
     };
   };
   timeBased: {
@@ -27,27 +27,14 @@ interface EnhancedStats {
     weekly: TimeBasedStats;
     monthly: TimeBasedStats;
   };
-  toolsTimeBased: {
-    [category: string]: {
-      [tool: string]: {
-        daily: TimeBasedStats;
-        weekly: TimeBasedStats;
-        monthly: TimeBasedStats;
-      };
-    };
-  };
+  // We can add toolsTimeBased later if needed for deep dives
 }
+
+// --- The Hook ---
 
 export function useLiveStatsEnhanced() {
   const [stats, setStats] = useState<EnhancedStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30); // Default to last 30 days
-    return { start, end };
-  });
 
   useEffect(() => {
     const statsRef = ref(db, "/stats");
@@ -60,71 +47,71 @@ export function useLiveStatsEnhanced() {
     return () => unsubscribe();
   }, []);
 
-  // Helper function to get time-based stats for the selected period
-  const getTimeBasedData = () => {
-    if (!stats?.timeBased) return [];
-
-    const periodData = stats.timeBased[timeRange];
-    const entries = Object.entries(periodData || {})
-      .filter(([key]) => {
-        const date = new Date(key);
-        return date >= dateRange.start && date <= dateRange.end;
-      })
-      .sort(([a], [b]) => a.localeCompare(b));
-
-    return entries.map(([date, data]) => ({
-      date,
-      ...data,
-    }));
-  };
-
-  // Helper function to get tool-specific time-based stats
-  const getToolTimeBasedData = (category: string, tool: string) => {
-    if (!stats?.toolsTimeBased?.[category]?.[tool]) return [];
-
-    const periodData = stats.toolsTimeBased[category][tool][timeRange];
-    const entries = Object.entries(periodData || {})
-      .filter(([key]) => {
-        const date = new Date(key);
-        return date >= dateRange.start && date <= dateRange.end;
-      })
-      .sort(([a], [b]) => a.localeCompare(b));
-
-    return entries.map(([date, data]) => ({
-      date,
-      ...data,
-    }));
-  };
-
-  // Helper function to get category totals
-  const getCategoryTotals = () => {
+  /**
+   * Memoized computation of tool-specific stats, flattened into an array.
+   * This prevents recalculation on every render.
+   */
+  const toolStats = useMemo(() => {
     if (!stats?.tools) return [];
-
-    return Object.entries(stats.tools).map(([category, tools]) => {
-      const totals = Object.values(tools).reduce(
-        (acc, tool) => ({
-          visits: acc.visits + (tool.visits || 0),
-          downloads: acc.downloads + (tool.downloads || 0),
-        }),
-        { visits: 0, downloads: 0 }
-      );
-
-      return {
+    
+    return Object.entries(stats.tools).flatMap(([category, tools]) =>
+      Object.entries(tools).map(([tool, stat]) => ({
+        name: tool,
         category,
-        ...totals,
-      };
+        visits: stat.visits || 0,
+        downloads: stat.downloads || 0,
+        conversionRate: stat.visits ? ((stat.downloads || 0) / stat.visits) * 100 : 0,
+      }))
+    );
+  }, [stats]);
+
+  /**
+   * Memoized computation of category totals.
+   */
+  const categoryTotals = useMemo(() => {
+    if (!toolStats.length) return [];
+
+    const totals: Record<string, { visits: number; downloads: number }> = {};
+    toolStats.forEach(({ category, visits, downloads }) => {
+      if (!totals[category]) {
+        totals[category] = { visits: 0, downloads: 0 };
+      }
+      totals[category].visits += visits;
+      totals[category].downloads += downloads;
     });
-  };
+
+    return Object.entries(totals).map(([name, data]) => ({
+      name,
+      ...data,
+    }));
+  }, [toolStats]);
+  
+  /**
+   * Memoized computation of overall time-based data.
+   */
+  const timeBasedData = useMemo(() => {
+    if (!stats?.timeBased) return { daily: [], weekly: [], monthly: [] };
+    
+    const formatPeriod = (periodData: TimeBasedStats | undefined) => {
+        if (!periodData) return [];
+        return Object.entries(periodData)
+            .map(([date, data]) => ({ date, ...data }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    };
+
+    return {
+        daily: formatPeriod(stats.timeBased.daily),
+        weekly: formatPeriod(stats.timeBased.weekly),
+        monthly: formatPeriod(stats.timeBased.monthly),
+    };
+  }, [stats]);
+
 
   return {
     stats,
     loading,
-    timeRange,
-    setTimeRange,
-    dateRange,
-    setDateRange,
-    getTimeBasedData,
-    getToolTimeBasedData,
-    getCategoryTotals,
+    toolStats,
+    categoryTotals,
+    timeBasedData,
   };
 }
