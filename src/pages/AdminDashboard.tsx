@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AnalyticsTab from "@/components/admin/AnalyticsTab";
+import ToolDetailTab from "@/components/admin/ToolDetailTab"; // <-- IMPORT NEW TAB
 import PromoCodesTab from "@/components/admin/PromoCodesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import { Button } from "@/components/ui/button";
-import { LogOut, Home, BarChart2, Ticket, Users } from "lucide-react";
+import { LogOut, Home, BarChart2, Ticket, Users, TestTube2 } from "lucide-react"; // <-- IMPORT NEW ICON
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
 const TABS = [
-  { key: "analytics", label: "Analytics", icon: BarChart2 },
+  { key: "analytics", label: "Overview", icon: BarChart2 },
+  { key: "tool-details", label: "Tool Details", icon: TestTube2 }, // <-- ADD NEW TAB
   { key: "promocodes", label: "Promo Codes", icon: Ticket },
   { key: "users", label: "Users", icon: Users },
 ] as const;
@@ -71,11 +73,11 @@ const AdminDashboard = () => {
           </div>
         </header>
         
-        <div className="flex gap-2 mb-8 justify-center border-b border-white/10 pb-4">
+        <div className="flex gap-2 mb-8 justify-center border-b border-white/10 pb-4 overflow-x-auto">
           {TABS.map(tab => (
             <button
               key={tab.key}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 font-mono font-semibold text-base uppercase transition-all
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 font-mono font-semibold text-base uppercase transition-all flex-shrink-0
                 ${selectedTab === tab.key
                   ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/30"
                   : "bg-black/30 text-white/80 hover:bg-gray-800/70"}
@@ -90,6 +92,7 @@ const AdminDashboard = () => {
         
         <main className="mt-4">
           {selectedTab === "analytics" && <AnalyticsTab />}
+          {selectedTab === 'tool-details' && <ToolDetailTab />}
           {selectedTab === "promocodes" && <PromoCodesTab />}
           {selectedTab === "users" && <UsersTab />}
         </main>
