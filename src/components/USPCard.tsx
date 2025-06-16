@@ -1,21 +1,28 @@
+// src/components/USPCard.tsx
 
 import React from "react";
 
 interface USPCardProps {
   title: string;
   description: string;
+  icon: React.ReactNode;
 }
 
-export const USPCard: React.FC<USPCardProps> = ({ title, description }) => (
-  <div className="relative group bg-black/80 border border-cyan-400/30 rounded-2xl shadow-[0_2px_36px_2px_rgba(8,246,255,0.06)] px-5 py-7 flex flex-col items-start justify-center hover:shadow-[0_4px_60px_3px_rgba(19,251,255,0.18)] transition-all overflow-hidden min-h-[112px]">
-    {/* Neon/cyan bottom glow */}
-    <span className="absolute bottom-0 left-0 w-full h-1 bg-cyan-400/60 blur-md opacity-80 group-hover:opacity-100 transition" />
-    <span className="text-lg font-bold font-mono tracking-wide text-white mb-1 drop-shadow-[0_2px_12px_cyan] uppercase">
-      {title}
-    </span>
-    <span className="text-sm text-cyan-100 font-semibold tracking-tight leading-normal z-10">
-      {description}
-    </span>
+export const USPCard: React.FC<USPCardProps> = ({ title, description, icon }) => (
+  <div className="relative group bg-gray-900/60 border border-white/10 rounded-2xl p-6 flex flex-col items-start transition-all duration-300 ease-in-out hover:bg-gray-900 hover:border-cyan-400/50 hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-500/10 backdrop-blur-sm overflow-hidden h-full">
+    {/* Subtle animated background glow on hover */}
+    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    
+    <div className="relative z-10 flex flex-col h-full">
+      <div className="mb-4 p-2 bg-black/40 border border-white/10 rounded-lg w-fit shadow-inner">
+        {icon}
+      </div>
+      <h3 className="text-lg font-bold font-mono tracking-wide text-white mb-2 uppercase">
+        {title}
+      </h3>
+      <p className="text-sm text-cyan-100/80 font-medium leading-relaxed">
+        {description}
+      </p>
+    </div>
   </div>
 );
-
