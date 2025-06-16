@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { ref, onValue, remove } from "firebase/database";
+import { ref, onValue, remove, get } from "firebase/database";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ const PromoCodesTab = () => {
   const [creating, setCreating] = useState(false);
   const [mode, setMode] = useState<"permanent" | "one_time" | "expires_in">("permanent");
   const [expireSeconds, setExpireSeconds] = useState(60 * 60 * 24 * 7);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const promoCodesRef = ref(db, "promoCodes");
@@ -49,6 +51,35 @@ const PromoCodesTab = () => {
     });
     return () => unsub();
   }, []);
+
+  // Fetch user names for created by column
+  useEffect(() => {
+    const fetchUserNames = async () => {
+      const codes = Object.values(promoCodes || {});
+      const userIds = [...new Set(codes.map(code => code.createdBy).filter(Boolean))];
+      
+      const names: Record<string, string> = {};
+      for (const userId of userIds) {
+        try {
+          const userRef = ref(db, `users/${userId}`);
+          const userSnap = await get(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.val();
+            names[userId] = userData.email || userData.displayName || userId;
+          } else {
+            names[userId] = userId;
+          }
+        } catch (error) {
+          names[userId] = userId;
+        }
+      }
+      setUserNames(names);
+    };
+
+    if (Object.keys(promoCodes).length > 0) {
+      fetchUserNames();
+    }
+  }, [promoCodes]);
 
   const handleCreatePromo = async () => {
     setCreating(true);
@@ -148,6 +179,7 @@ const PromoCodesTab = () => {
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Code</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Target Role</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Type</th>
+              <th className="py-2 px-3 text-left font-mono text-cyan-400">Created By</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Created</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Status</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Redeemed By</th>
@@ -161,6 +193,7 @@ const PromoCodesTab = () => {
                 <td className="py-2 px-3 font-mono text-white/90">{code.code}</td>
                 <td className="py-2 px-3 text-white/90">{code.targetRole}</td>
                 <td className="py-2 px-3 text-white/90">{code.type ?? "permanent"}</td>
+                <td className="py-2 px-3 text-white/90">{userNames[code.createdBy] || code.createdBy || "—"}</td>
                 <td className="py-2 px-3 text-white/90">
                   {code.createdAt ? new Date(code.createdAt).toLocaleString() : "—"}
                 </td>
@@ -190,7 +223,7 @@ const PromoCodesTab = () => {
             ))}
             {!promoList.length && (
               <tr>
-                <td colSpan={8} className="text-center text-cyan-400 py-6">No promo codes found.</td>
+                <td colSpan={9} className="text-center text-cyan-400 py-6">No promo codes found.</td>
               </tr>
             )}
           </tbody>
