@@ -9,10 +9,11 @@ import { ref, onValue } from "firebase/database";
 interface ToolStats {
   visits?: number;
   downloads?: number;
+  options?: Record<string, Record<string, number>>;
 }
 
 interface TimeBasedStats {
-  [key: string]: ToolStats; // e.g., "2024-07-31": { visits: 10, downloads: 5 }
+  [key: string]: ToolStats;
 }
 
 interface EnhancedStats {
@@ -27,52 +28,72 @@ interface EnhancedStats {
     weekly: TimeBasedStats;
     monthly: TimeBasedStats;
   };
-  // We can add toolsTimeBased later if needed for deep dives
 }
+
+type ToolStatusMap = Record<string, Record<string, "available" | "coming_soon">>;
 
 // --- The Hook ---
 
 export function useLiveStatsEnhanced() {
   const [stats, setStats] = useState<EnhancedStats | null>(null);
+  const [toolStatus, setToolStatus] = useState<ToolStatusMap | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch both stats from Firebase and status from JSON
   useEffect(() => {
-    const statsRef = ref(db, "/stats");
-    const unsubscribe = onValue(statsRef, (snapshot) => {
-      const data = snapshot.val();
-      setStats(data);
-      setLoading(false);
-    });
+    const fetchAllData = async () => {
+      setLoading(true);
+      try {
+        // Fetch status.json
+        const statusResponse = await fetch("/tools/status.json");
+        const statusData = await statusResponse.json();
+        setToolStatus(statusData);
 
-    return () => unsubscribe();
+        // Set up Firebase listener for stats
+        const statsRef = ref(db, "/stats");
+        const unsubscribe = onValue(statsRef, (snapshot) => {
+          const statsData = snapshot.val();
+          setStats(statsData);
+          setLoading(false); // Only stop loading once both are fetched
+        });
+        
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        setLoading(false);
+      }
+    };
+    fetchAllData();
   }, []);
 
-  /**
-   * Memoized computation of tool-specific stats, flattened into an array.
-   * This prevents recalculation on every render.
-   */
-  const toolStats = useMemo(() => {
-    if (!stats?.tools) return [];
-    
-    return Object.entries(stats.tools).flatMap(([category, tools]) =>
-      Object.entries(tools).map(([tool, stat]) => ({
-        name: tool,
-        category,
-        visits: stat.visits || 0,
-        downloads: stat.downloads || 0,
-        conversionRate: stat.visits ? ((stat.downloads || 0) / stat.visits) * 100 : 0,
-      }))
-    );
-  }, [stats]);
+  const availableToolStats = useMemo(() => {
+    if (!stats?.tools || !toolStatus) return [];
 
-  /**
-   * Memoized computation of category totals.
-   */
-  const categoryTotals = useMemo(() => {
-    if (!toolStats.length) return [];
+    const availableTools: any[] = [];
+    Object.entries(toolStatus).forEach(([category, tools]) => {
+      Object.entries(tools).forEach(([tool, status]) => {
+        if (status === 'available') {
+          const toolData = stats.tools[category]?.[tool];
+          if (toolData) {
+            availableTools.push({
+              name: tool,
+              category,
+              visits: toolData.visits || 0,
+              downloads: toolData.downloads || 0,
+              conversionRate: toolData.visits ? ((toolData.downloads || 0) / toolData.visits) * 100 : 0,
+            });
+          }
+        }
+      });
+    });
+    return availableTools;
+  }, [stats, toolStatus]);
+
+  const availableCategoryTotals = useMemo(() => {
+    if (!availableToolStats.length) return [];
 
     const totals: Record<string, { visits: number; downloads: number }> = {};
-    toolStats.forEach(({ category, visits, downloads }) => {
+    availableToolStats.forEach(({ category, visits, downloads }) => {
       if (!totals[category]) {
         totals[category] = { visits: 0, downloads: 0 };
       }
@@ -84,34 +105,34 @@ export function useLiveStatsEnhanced() {
       name,
       ...data,
     }));
-  }, [toolStats]);
-  
-  /**
-   * Memoized computation of overall time-based data.
-   */
+  }, [availableToolStats]);
+
   const timeBasedData = useMemo(() => {
     if (!stats?.timeBased) return { daily: [], weekly: [], monthly: [] };
-    
     const formatPeriod = (periodData: TimeBasedStats | undefined) => {
-        if (!periodData) return [];
-        return Object.entries(periodData)
-            .map(([date, data]) => ({ date, ...data }))
-            .sort((a, b) => a.date.localeCompare(b.date));
+      if (!periodData) return [];
+      return Object.entries(periodData)
+        .map(([date, data]) => ({ date, ...data }))
+        .sort((a, b) => a.date.localeCompare(b.date));
     };
-
     return {
-        daily: formatPeriod(stats.timeBased.daily),
-        weekly: formatPeriod(stats.timeBased.weekly),
-        monthly: formatPeriod(stats.timeBased.monthly),
+      daily: formatPeriod(stats.timeBased.daily),
+      weekly: formatPeriod(stats.timeBased.weekly),
+      monthly: formatPeriod(stats.timeBased.monthly),
     };
   }, [stats]);
-
+  
+  const getToolOptions = (category: string, tool: string) => {
+      return stats?.tools?.[category]?.[tool]?.options || null;
+  }
 
   return {
     stats,
     loading,
-    toolStats,
-    categoryTotals,
+    toolStatus,
+    toolStats: availableToolStats, // Renamed for clarity
+    categoryTotals: availableCategoryTotals, // Renamed for clarity
     timeBasedData,
+    getToolOptions,
   };
 }
