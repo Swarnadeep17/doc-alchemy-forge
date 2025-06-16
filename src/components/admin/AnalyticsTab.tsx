@@ -30,7 +30,7 @@ const AnalyticsTab = () => {
     if (!overall.visits) return 0;
     return ((overall.downloads || 0) / (overall.visits || 1)) * 100;
   }, [overall]);
-
+  
   const toolsForSelectedCategory = useMemo(() => {
     if (!selectedCategory) return [];
     return toolStats.filter(tool => tool.category === selectedCategory);
@@ -64,8 +64,6 @@ const AnalyticsTab = () => {
         <h2 className="text-2xl font-semibold text-white">Engagement Analytics</h2>
         <p className="text-sm text-gray-400 mt-1">Analyze user engagement by tool category. Click a category on the left to see a detailed breakdown.</p>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mt-4">
-          
-          {/* Category Performance Table (Master) */}
           <Card className="bg-gray-950/50 border border-white/10 lg:col-span-1">
             <CardHeader><CardTitle className="text-lg text-white">Tool Categories</CardTitle></CardHeader>
             <CardContent className="px-2 pb-2 md:px-4 md:pb-4">
@@ -94,8 +92,6 @@ const AnalyticsTab = () => {
               </Table>
             </CardContent>
           </Card>
-
-          {/* Tool Performance Table (Detail) */}
           <Card className="bg-gray-950/50 border border-white/10 lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg text-white">
@@ -124,7 +120,7 @@ const AnalyticsTab = () => {
                     ))
                   ) : (
                     <TableRow className="border-none hover:bg-transparent">
-                      <TableCell colSpan={4} className="h-32 text-center text-gray-500">
+                      <TableCell colSpan={4} className="h-24 text-center text-gray-500">
                         {selectedCategory ? 'No tools in this category.' : 'Select a category to view tools.'}
                       </TableCell>
                     </TableRow>
@@ -138,7 +134,6 @@ const AnalyticsTab = () => {
     </div>
   );
 };
-
 
 // --- Helper Component for KPI Cards ---
 const kpiCardColorVariants = {
