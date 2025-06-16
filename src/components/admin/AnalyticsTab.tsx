@@ -7,10 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader, TrendingUp, Download, CheckCircle, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// --- Main Analytics Component ---
 const AnalyticsTab = () => {
   const { stats, loading, toolStats, categoryTotals } = useLiveStatsEnhanced();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // Set the first category as default once data is loaded
   useEffect(() => {
     if (categoryTotals.length > 0 && !selectedCategory) {
       setSelectedCategory(categoryTotals[0].name);
@@ -48,8 +50,8 @@ const AnalyticsTab = () => {
       {/* KPI Section */}
       <div>
         <h2 className="text-2xl font-semibold text-white">Platform Overview</h2>
-        <p className="text-sm text-white/60 mt-1">A high-level summary of key performance indicators across the entire application.</p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
+        <p className="text-sm text-gray-400 mt-1">A high-level summary of key performance indicators across the entire application.</p>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4 mt-4">
           <KPICard icon={TrendingUp} title="Total Visits" value={overall.visits?.toLocaleString() || '0'} color="cyan" />
           <KPICard icon={Download} title="Total Downloads" value={overall.downloads?.toLocaleString() || '0'} color="violet" />
           <KPICard icon={CheckCircle} title="Conversion Rate" value={`${overallConversionRate.toFixed(1)}%`} color="green" />
@@ -60,16 +62,18 @@ const AnalyticsTab = () => {
       {/* Interactive Tables Section */}
       <div>
         <h2 className="text-2xl font-semibold text-white">Engagement Analytics</h2>
-        <p className="text-sm text-white/60 mt-1">Analyze user engagement by tool category. Click a category on the left to see a detailed breakdown.</p>
+        <p className="text-sm text-gray-400 mt-1">Analyze user engagement by tool category. Click a category on the left to see a detailed breakdown.</p>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mt-4">
-          <Card className="bg-gray-900/70 lg:col-span-1">
+          
+          {/* Category Performance Table (Master) */}
+          <Card className="bg-gray-950/50 border border-white/10 lg:col-span-1">
             <CardHeader><CardTitle className="text-lg text-white">Tool Categories</CardTitle></CardHeader>
-            <CardContent>
+            <CardContent className="px-2 pb-2 md:px-4 md:pb-4">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-white/10">
-                    <TableHead className="text-white/80">Category</TableHead>
-                    <TableHead className="text-right text-white/80">Visits</TableHead>
+                  <TableRow className="border-b-white/10">
+                    <TableHead className="text-gray-300 uppercase text-xs tracking-wider">Category</TableHead>
+                    <TableHead className="text-right text-gray-300 uppercase text-xs tracking-wider">Visits</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -78,11 +82,11 @@ const AnalyticsTab = () => {
                       key={category.name}
                       onClick={() => setSelectedCategory(category.name)}
                       className={cn(
-                        "cursor-pointer transition-colors hover:bg-cyan-900/30 border-white/10",
-                        selectedCategory === category.name && "bg-cyan-900/50"
+                        "cursor-pointer transition-colors hover:bg-white/10 border-white/10",
+                        selectedCategory === category.name && "bg-cyan-600/20 border-l-2 border-l-cyan-400"
                       )}
                     >
-                      <TableCell className="font-semibold text-white capitalize">{category.name}</TableCell>
+                      <TableCell className="font-semibold text-gray-200 capitalize">{category.name}</TableCell>
                       <TableCell className="text-right font-mono text-cyan-300">{category.visits.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
@@ -90,35 +94,37 @@ const AnalyticsTab = () => {
               </Table>
             </CardContent>
           </Card>
-          <Card className="bg-gray-900/70 lg:col-span-2">
+
+          {/* Tool Performance Table (Detail) */}
+          <Card className="bg-gray-950/50 border border-white/10 lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg text-white">
                 Tool Details: <span className="capitalize text-cyan-400">{selectedCategory || '...'}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2 pb-2 md:px-4 md:pb-4">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-white/10">
-                    <TableHead className="text-white/80">Tool</TableHead>
-                    <TableHead className="text-right text-white/80">Visits</TableHead>
-                    <TableHead className="text-right text-white/80">Downloads</TableHead>
-                    <TableHead className="text-right text-white/80">Conversion</TableHead>
+                  <TableRow className="border-b-white/10">
+                    <TableHead className="text-gray-300 uppercase text-xs tracking-wider">Tool</TableHead>
+                    <TableHead className="text-right text-gray-300 uppercase text-xs tracking-wider">Visits</TableHead>
+                    <TableHead className="text-right text-gray-300 uppercase text-xs tracking-wider">Downloads</TableHead>
+                    <TableHead className="text-right text-gray-300 uppercase text-xs tracking-wider">Conversion</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {toolsForSelectedCategory.length > 0 ? (
                     toolsForSelectedCategory.map((tool) => (
-                      <TableRow key={tool.name} className="hover:bg-gray-800/50 border-white/10">
-                        <TableCell className="font-medium capitalize text-white">{tool.name}</TableCell>
+                      <TableRow key={tool.name} className="hover:bg-white/5 border-white/10">
+                        <TableCell className="font-medium capitalize text-gray-200">{tool.name}</TableCell>
                         <TableCell className="text-right font-mono text-cyan-300">{tool.visits.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono text-violet-300">{tool.downloads.toLocaleString()}</TableCell>
                         <TableCell className="text-right font-mono text-green-400">{tool.conversionRate.toFixed(1)}%</TableCell>
                       </TableRow>
                     ))
                   ) : (
-                    <TableRow className="border-none">
-                      <TableCell colSpan={4} className="h-24 text-center text-white/50">
+                    <TableRow className="border-none hover:bg-transparent">
+                      <TableCell colSpan={4} className="h-32 text-center text-gray-500">
                         {selectedCategory ? 'No tools in this category.' : 'Select a category to view tools.'}
                       </TableCell>
                     </TableRow>
@@ -133,18 +139,19 @@ const AnalyticsTab = () => {
   );
 };
 
+
 // --- Helper Component for KPI Cards ---
 const kpiCardColorVariants = {
-  cyan: "from-cyan-900/30 to-black/30 border-cyan-500/30",
-  violet: "from-violet-900/30 to-black/30 border-violet-500/30",
-  green: "from-green-900/30 to-black/30 border-green-500/30",
-  amber: "from-amber-900/30 to-black/30 border-amber-500/30",
+  cyan: "border-cyan-500/40 hover:border-cyan-500/80",
+  violet: "border-violet-500/40 hover:border-violet-500/80",
+  green: "border-green-500/40 hover:border-green-500/80",
+  amber: "border-amber-500/40 hover:border-amber-500/80",
 };
 const kpiIconBgVariants = {
-    cyan: "bg-cyan-900/50",
-    violet: "bg-violet-900/50",
-    green: "bg-green-900/50",
-    amber: "bg-amber-900/50",
+    cyan: "bg-cyan-900/70",
+    violet: "bg-violet-900/70",
+    green: "bg-green-900/70",
+    amber: "bg-amber-900/70",
 }
 const kpiTextColorVariants = {
   cyan: "text-cyan-400",
@@ -162,9 +169,9 @@ interface KPICardProps {
 }
 
 const KPICard = ({ icon: Icon, title, value, description, color }: KPICardProps) => (
-  <Card className={cn("bg-gradient-to-br border", kpiCardColorVariants[color])}>
+  <Card className={cn("bg-gray-950/50 border transition-colors", kpiCardColorVariants[color])}>
     <CardContent className="p-4 flex flex-col justify-between h-full">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-start mb-2">
         <p className={cn("text-sm font-semibold", kpiTextColorVariants[color])}>{title}</p>
         <div className={cn("p-2 rounded-lg", kpiIconBgVariants[color])}>
           <Icon className={cn("w-5 h-5", kpiTextColorVariants[color])} />
@@ -172,7 +179,7 @@ const KPICard = ({ icon: Icon, title, value, description, color }: KPICardProps)
       </div>
       <div>
         <h3 className="text-3xl font-bold text-white capitalize">{value}</h3>
-        {description && <p className="text-xs text-white/70 mt-1 capitalize">{description}</p>}
+        {description && <p className="text-xs text-gray-400 mt-1 capitalize">{description}</p>}
       </div>
     </CardContent>
   </Card>
