@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { ref, get, update } from "firebase/database";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Edit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
 
@@ -16,13 +18,17 @@ interface AuthUserRecord {
   role: UserRole;
   promoCodeRedeemed?: string;
   upgradedAt?: any;
+  lastModifiedBy?: string;
+  lastModifiedAt?: any;
   uid?: string;
 }
 
 const UsersTab = () => {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<AuthUserRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [adminNames, setAdminNames] = useState<Record<string, string>>({});
 
   const handleSearch = async () => {
     setLoading(true);
@@ -45,11 +51,50 @@ const UsersTab = () => {
     setLoading(false);
   };
 
+  // Fetch admin names for the "Last Modified By" column
+  useEffect(() => {
+    const fetchAdminNames = async () => {
+      const adminIds = [...new Set(results.map(u => u.lastModifiedBy).filter(Boolean))];
+      
+      const names: Record<string, string> = {};
+      for (const adminId of adminIds) {
+        try {
+          const adminRef = ref(db, `users/${adminId}`);
+          const adminSnap = await get(adminRef);
+          if (adminSnap.exists()) {
+            const adminData = adminSnap.val();
+            names[adminId] = adminData.email || adminData.displayName || adminId;
+          } else {
+            names[adminId] = adminId;
+          }
+        } catch (error) {
+          names[adminId] = adminId;
+        }
+      }
+      setAdminNames(names);
+    };
+
+    if (results.length > 0) {
+      fetchAdminNames();
+    }
+  }, [results]);
+
   const handleRoleChange = async (uid: string, newRole: "premium" | "admin") => {
+    if (!user) return;
     setLoading(true);
-    await update(ref(db, `users/${uid}`), { role: newRole, upgradedAt: Date.now() });
+    await update(ref(db, `users/${uid}`), { 
+      role: newRole, 
+      upgradedAt: Date.now(),
+      lastModifiedBy: user.uid,
+      lastModifiedAt: Date.now()
+    });
     toast({ title: "User role updated", description: `User is now ${newRole}` });
-    setResults(res => res.map(u => (u.uid === uid ? { ...u, role: newRole } : u)));
+    setResults(res => res.map(u => (u.uid === uid ? { 
+      ...u, 
+      role: newRole, 
+      lastModifiedBy: user.uid,
+      lastModifiedAt: Date.now()
+    } : u)));
     setLoading(false);
   };
 
@@ -82,6 +127,7 @@ const UsersTab = () => {
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Display Name</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Phone</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Role</th>
+              <th className="py-2 px-3 text-left font-mono text-cyan-400">Last Modified By</th>
               <th className="py-2 px-3 text-left font-mono text-cyan-400">Change Role</th>
             </tr>
           </thead>
@@ -92,6 +138,18 @@ const UsersTab = () => {
                 <td className="py-2 px-3 text-white/80">{user.displayName ?? "—"}</td>
                 <td className="py-2 px-3 text-white/80">{user.phoneNumber ?? "—"}</td>
                 <td className="py-2 px-3 text-cyan-400 font-bold font-mono uppercase">{user.role}</td>
+                <td className="py-2 px-3 text-white/80 text-xs">
+                  {user.lastModifiedBy ? (
+                    <div>
+                      <div>{adminNames[user.lastModifiedBy] || user.lastModifiedBy}</div>
+                      {user.lastModifiedAt && (
+                        <div className="text-white/50">
+                          {new Date(user.lastModifiedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  ) : "—"}
+                </td>
                 <td className="py-2 px-3">
                   {user.role === "superadmin" ? (
                     <span className="text-purple-400 font-extrabold">Superadmin</span>
@@ -131,7 +189,7 @@ const UsersTab = () => {
             ))}
             {!results.length && (
               <tr>
-                <td colSpan={5} className="text-center text-cyan-400 py-7">Search users above to view and edit roles.</td>
+                <td colSpan={6} className="text-center text-cyan-400 py-7">Search users above to view and edit roles.</td>
               </tr>
             )}
           </tbody>

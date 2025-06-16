@@ -4,6 +4,10 @@ import { useAuth } from "@/context/AuthContext";
 import AnalyticsTab from "@/components/admin/AnalyticsTab";
 import PromoCodesTab from "@/components/admin/PromoCodesTab";
 import UsersTab from "@/components/admin/UsersTab";
+import { Button } from "@/components/ui/button";
+import { LogOut, Home } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 const TABS = [
   { key: "analytics", label: "Analytics" },
@@ -12,14 +16,28 @@ const TABS = [
 ];
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [selectedTab, setSelectedTab] = useState("analytics");
-  // improved: Don't show dashboard/unauthorized till user is loaded.
   const [checkedAuth, setCheckedAuth] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user !== undefined) setCheckedAuth(true);
   }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({ title: "Logged out successfully" });
+      navigate("/");
+    } catch (error) {
+      toast({ title: "Logout failed", description: "Please try again" });
+    }
+  };
+
+  const handleHome = () => {
+    navigate("/");
+  };
 
   if (!checkedAuth) {
     // loading spinner for better UX
@@ -44,7 +62,29 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex flex-col items-center justify-center px-2 py-8 w-full">
       <div className="w-full max-w-6xl mx-auto bg-gray-900/95 border border-cyan-400/30 shadow-lg rounded-xl p-10 animate-fade-in">
-        <h1 className="text-3xl text-white font-bold font-mono mb-6 tracking-widest uppercase text-center">Admin Dashboard</h1>
+        {/* Header with navigation buttons */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl text-white font-bold font-mono tracking-widest uppercase">Admin Dashboard</h1>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={handleHome}
+              className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 font-mono"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="border-red-500 text-red-400 hover:bg-red-500/10 font-mono"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </div>
+        
         <div className="flex gap-2 mb-8 justify-center">
           {TABS.map(tab => (
             <button
