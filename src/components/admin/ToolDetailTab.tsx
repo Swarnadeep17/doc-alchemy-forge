@@ -33,7 +33,9 @@ const ToolDetailTab = () => {
 
   const toolData = useMemo(() => {
     if (!selectedTool) return null;
-    return stats?.tools?.[toolStats.find(t=>t.name === selectedTool)?.category]?.[selectedTool];
+    const category = toolStats.find(t=>t.name === selectedTool)?.category;
+    if (!category) return null;
+    return stats?.tools?.[category]?.[selectedTool];
   }, [selectedTool, stats?.tools, toolStats]);
 
   if (loading) {
@@ -59,22 +61,26 @@ const ToolDetailTab = () => {
             <Select 
               value={toolStats.find(t => t.name === selectedTool)?.category || ""}
               onValueChange={(category) => {
-                const firstToolInCategory = Object.keys(stats.tools[category])[0];
+                const firstToolInCategory = Object.keys(stats.tools[category] || {})[0];
                 setSelectedTool(firstToolInCategory);
               }}
             >
-              <SelectTrigger className="bg-gray-900 border-white/20"><SelectValue placeholder="Select a category..." /></SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>)}
+              <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-gray-200 hover:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/50 transition-colors">
+                <SelectValue placeholder="Select a category..." />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-950 border-gray-700 text-gray-200">
+                {categories.map(cat => <SelectItem key={cat} value={cat} className="capitalize focus:bg-cyan-800/50">{cat}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="w-full md:w-1/2">
             <label className="text-sm font-medium text-gray-300 mb-2 block">Select Tool</label>
             <Select value={selectedTool || ""} onValueChange={setSelectedTool}>
-              <SelectTrigger className="bg-gray-900 border-white/20"><SelectValue placeholder="Select a tool..." /></SelectTrigger>
-              <SelectContent>
-                {toolsInCategory.map(tool => <SelectItem key={tool} value={tool} className="capitalize">{tool}</SelectItem>)}
+              <SelectTrigger className="w-full bg-gray-900 border-gray-700 text-gray-200 hover:border-cyan-500/80 focus:ring-2 focus:ring-cyan-500/50 transition-colors">
+                <SelectValue placeholder="Select a tool..." />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-950 border-gray-700 text-gray-200">
+                {toolsInCategory.map(tool => <SelectItem key={tool} value={tool} className="capitalize focus:bg-cyan-800/50">{tool}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -89,11 +95,11 @@ const ToolDetailTab = () => {
               <CardContent>
                 <div className="h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={Object.entries(optionValues).map(([name, value]) => ({ name, count: value }))} layout="vertical">
+                    <BarChart data={Object.entries(optionValues).map(([name, value]) => ({ name, count: value as number }))} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#2563eb" opacity={0.1} />
                       <XAxis type="number" stroke="#9ca3af" fontSize={12} />
-                      <YAxis type="category" dataKey="name" stroke="#9ca3af" fontSize={12} width={80} />
-                      <Tooltip contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151" }} labelStyle={{ color: "#e5e7eb" }}/>
+                      <YAxis type="category" dataKey="name" stroke="#9ca3af" fontSize={12} width={80} tick={{ fill: '#d1d5db' }} />
+                      <Tooltip cursor={{fill: 'rgba(100, 116, 139, 0.1)'}} contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151" }} labelStyle={{ color: "#e5e7eb" }}/>
                       <Bar dataKey="count" name="Times Used" fill={COLORS[index % COLORS.length]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -111,7 +117,6 @@ const ToolDetailTab = () => {
           </CardContent>
         </Card>
       ) : null}
-
     </div>
   );
 };
