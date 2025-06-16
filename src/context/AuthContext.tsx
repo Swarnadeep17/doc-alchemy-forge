@@ -36,6 +36,7 @@ export interface PromoCodeRecord {
   redeemed: boolean;
   redeemedBy?: string;
   redeemedAt?: any;
+  type: "permanent" | "one_time" | "expires_in";
 }
 
 interface CreatePromoCodeOptions {
@@ -210,21 +211,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error("Only Superadmins can create promo codes.");
 
     const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const expiresAt = options.expiresAt || Date.now() + 24 * 60 * 60 * 1000;
     const codeRef = ref(db, `promoCodes/${code}`);
 
-    await set(codeRef, {
+    const codeData: PromoCodeRecord & { type?: string } = {
       code,
       targetRole: options.targetRole,
       createdBy: user.uid,
       createdAt: serverTimestamp(),
-      expiresAt,
+      type: options.type || "permanent",
       redeemed: false,
       redeemedBy: null,
       redeemedAt: null,
-    });
+      expiresAt: options.type === "expires_in" ? options.expiresAt : null
+    };
 
-    toast({ title: `Promo code created: ${code}`, description: `For ${options.targetRole} (expires in 24h)` });
+    await set(codeRef, codeData);
+
+    const description = options.type === "expires_in" 
+      ? `For ${options.targetRole} (expires ${new Date(options.expiresAt!).toLocaleString()})` 
+      : `For ${options.targetRole} (${options.type || "permanent"})`;
+
+    toast({ title: `Promo code created: ${code}`, description });
     return code;
   };
 

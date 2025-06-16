@@ -17,8 +17,7 @@ interface PromoCodeRecord {
   redeemed: boolean;
   redeemedBy?: string;
   redeemedAt?: any;
-  type?: "permanent" | "one_time" | "expires_in";
-  usesLeft?: number; // to manage one-time/permanent/limited
+  type: "permanent" | "one_time" | "expires_in";
 }
 
 const EXPIRE_OPTIONS = [
@@ -84,18 +83,14 @@ const PromoCodesTab = () => {
   const handleCreatePromo = async () => {
     setCreating(true);
     try {
-      let expiresAt: number | undefined;
-      let type: "permanent" | "one_time" | "expires_in" = mode;
-      if (mode === "expires_in") {
-        expiresAt = Date.now() + expireSeconds * 1000;
-      }
-      // Combine all params into one object, assuming createPromoCode expects an object
       const params = {
         targetRole: creatingFor,
-        expiresAt,
-        type
+        type: mode,
+        ...(mode === "expires_in" ? {
+          expiresAt: Date.now() + expireSeconds * 1000
+        } : {})
       };
-      const code = await createPromoCode(params); // Pass only 1 argument
+      const code = await createPromoCode(params);
       toast({ title: "Promo Code Created", description: code });
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
@@ -192,7 +187,15 @@ const PromoCodesTab = () => {
               <tr key={code.code} className="border-b border-white/5 hover:bg-cyan-950/15 transition">
                 <td className="py-2 px-3 font-mono text-white/90">{code.code}</td>
                 <td className="py-2 px-3 text-white/90">{code.targetRole}</td>
-                <td className="py-2 px-3 text-white/90">{code.type ?? "permanent"}</td>
+                <td className="py-2 px-3 text-white/90">
+                  {code.type === "permanent" ? (
+                    <span className="text-emerald-400">Permanent</span>
+                  ) : code.type === "one_time" ? (
+                    <span className="text-yellow-400">One-Time</span>
+                  ) : (
+                    <span className="text-cyan-400">Expires</span>
+                  )}
+                </td>
                 <td className="py-2 px-3 text-white/90">{userNames[code.createdBy] || code.createdBy || "—"}</td>
                 <td className="py-2 px-3 text-white/90">
                   {code.createdAt ? new Date(code.createdAt).toLocaleString() : "—"}
