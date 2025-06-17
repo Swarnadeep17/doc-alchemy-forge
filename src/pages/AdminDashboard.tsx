@@ -1,19 +1,20 @@
-// src/pages/AdminDashboard.tsx
-
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import AnalyticsTab from "@/components/admin/AnalyticsTab";
-import ToolDetailTab from "@/components/admin/ToolDetailTab"; // <-- IMPORT NEW TAB
-import PromoCodesTab from "@/components/admin/PromoCodesTab";
-import UsersTab from "@/components/admin/UsersTab";
-import { Button } from "@/components/ui/button";
-import { LogOut, Home, BarChart2, Ticket, Users, TestTube2 } from "lucide-react"; // <-- IMPORT NEW ICON
+import React, { useState, useEffect, lazy, Suspense } from "react";
+import { useAuth } from "../context/AuthContext";
+import { Button } from "../components/ui/button";
+import TabLoadingState from "../components/admin/TabLoadingState";
+import { LogOut, Home, BarChart2, Ticket, Users, TestTube2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "../hooks/use-toast";
+
+// Lazy load admin tabs
+const AnalyticsTab = lazy(() => import("../components/admin/AnalyticsTab"));
+const ToolDetailTab = lazy(() => import("../components/admin/ToolDetailTab"));
+const PromoCodesTab = lazy(() => import("../components/admin/PromoCodesTab"));
+const UsersTab = lazy(() => import("../components/admin/UsersTab"));
 
 const TABS = [
   { key: "analytics", label: "Overview", icon: BarChart2 },
-  { key: "tool-details", label: "Tool Details", icon: TestTube2 }, // <-- ADD NEW TAB
+  { key: "tool-details", label: "Tool Details", icon: TestTube2 },
   { key: "promocodes", label: "Promo Codes", icon: Ticket },
   { key: "users", label: "Users", icon: Users },
 ] as const;
@@ -91,10 +92,12 @@ const AdminDashboard = () => {
         </div>
         
         <main className="mt-4">
-          {selectedTab === "analytics" && <AnalyticsTab />}
-          {selectedTab === 'tool-details' && <ToolDetailTab />}
-          {selectedTab === "promocodes" && <PromoCodesTab />}
-          {selectedTab === "users" && <UsersTab />}
+          <Suspense fallback={<TabLoadingState />}>
+            {selectedTab === "analytics" && <AnalyticsTab />}
+            {selectedTab === 'tool-details' && <ToolDetailTab />}
+            {selectedTab === "promocodes" && <PromoCodesTab />}
+            {selectedTab === "users" && <UsersTab />}
+          </Suspense>
         </main>
 
       </div>
