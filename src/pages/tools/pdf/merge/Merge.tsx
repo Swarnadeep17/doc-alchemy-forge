@@ -6,11 +6,7 @@
 // pdf-lib, pdfjs-dist, react-beautiful-dnd, tesseract.js, @tensorflow/tfjs, @tensorflow-models/universal-sentence-encoder, classnames, tailwindcss (already in project)
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-<<<<<<< HEAD
 import { PDFDocument, PDFSaveOptions, rgb, degrees, StandardFonts } from 'pdf-lib';
-=======
-import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
->>>>>>> main
 // import { getDatabase, ref, update, increment } from 'firebase/database'; // Firebase specific stats removed
 import { useAuth, UserRole } from '../../../../context/AuthContext'; // <-- project‑specific auth hook that returns {user, role}
 import { trackStat } from '../../../../lib/statsManager';
@@ -86,13 +82,10 @@ export default function PdfMergeTool() {
   const [duplicates, setDuplicates] = useState<number[]>([]); // indices of duplicate pages
   const [ocrText, setOcrText] = useState<string>('');
   const [applyGrayscale, setApplyGrayscale] = useState(false);
-<<<<<<< HEAD
   const [compressionLevel, setCompressionLevel] = useState<string>('none');
   const [detailedPages, setDetailedPages] = useState<DetailedPage[]>([]);
   const [isPageView, setIsPageView] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-=======
->>>>>>> main
 
   // On mount: increment visits
   useEffect(() => {
@@ -366,28 +359,24 @@ export default function PdfMergeTool() {
   const handleMerge = async () => {
     const useDetailedPagesOrder = isPageView && detailedPages.length > 0;
 
-    // Determine the number of items to be merged.
-    // If in page view, it's the number of detailed pages.
-    // If in file view, it's the number of ordered files.
     const itemCount = useDetailedPagesOrder ? detailedPages.length : orderedFiles.length;
 
     if (itemCount === 0) {
       alert('Please add PDF files to merge.');
       return;
     }
-    // In file view, typically a merge involves at least two files.
-    // In page view, even a single page (from one or more files) can be "merged" (processed and saved).
     if (!isPageView && orderedFiles.length < 2) {
+      // In file view, still require at least 2 files to "merge"
       alert('Please select at least two PDF files to merge when in File View, or switch to Page View to process individual pages.');
       return;
     }
+    // In page view, itemCount >= 1 is fine as we are merging selected pages.
 
     setIsProcessing(true);
     const sourcePdfCache = new Map<string, PDFDocument>();
-    let finalMergedDoc: PDFDocument | null = null; // Renamed from mergedPdfOutput for clarity
+    let finalMergedDoc: PDFDocument | null = null;
 
     try {
-<<<<<<< HEAD
       finalMergedDoc = await PDFDocument.create();
       const standardFont = await finalMergedDoc.embedFont(StandardFonts.Helvetica);
 
@@ -403,7 +392,6 @@ export default function PdfMergeTool() {
 
           const [copiedPage] = await finalMergedDoc.copyPages(sourcePdfDoc, [pageInfo.originalPageIndex]);
 
-          // Apply watermarking to the copied page
           if (watermarkText) {
             const { width, height } = copiedPage.getSize();
             let R = 0.5, G = 0.5, B = 0.5;
@@ -436,55 +424,13 @@ export default function PdfMergeTool() {
               console.log('Grayscale effect selected, but no watermark. Full page grayscale not yet implemented.');
             }
             finalMergedDoc.addPage(page);
-=======
-      // Client priority: premium+ immediate, free: artificial delay to simulate queue.
-      // PRIORITY_QUEUE feature was removed. If specific delay logic is still needed for free/anonymous, it should be handled differently.
-      // For now, removing the explicit delay based on PRIORITY_QUEUE.
-      // if (!hasFeature(userRole, 'PRIORITY_QUEUE')) { // PRIORITY_QUEUE is no longer a feature
-      //   await new Promise((res) => setTimeout(res, 2000));
-      // }
-
-      const merged = await PDFDocument.create();
-      const standardFont = await merged.embedFont(StandardFonts.Helvetica);
-
-      for (const file of orderedFiles) {
-        const bytes = await file.arrayBuffer();
-        const pdf = await PDFDocument.load(bytes);
-        const copiedPages = await merged.copyPages(pdf, pdf.getPageIndices());
-        for (const page of copiedPages) {
-          // Watermark all pages if watermark text provided
-          if (watermarkText) {
-            const { width, height } = page.getSize();
-            let R = 0.5, G = 0.5, B = 0.5; // Default watermark color (gray)
-            if (applyGrayscale) {
-              // Grayscale keeps R, G, B components equal.
-              // Using the existing default gray, but could be made configurable.
-              R = 0.4; G = 0.4; B = 0.4; // A slightly darker gray for grayscale effect
-            }
-            page.drawText(watermarkText, {
-              x: width / 2,
-              y: height / 2,
-              size: watermarkFontSize,
-              font: standardFont,
-              color: rgb(R, G, B),
-              rotate: degrees(watermarkRotation),
-              opacity: watermarkOpacity,
-              xSkew: 0,
-              ySkew: 0,
-            });
-          } else if (applyGrayscale) {
-            console.log('Grayscale effect selected, but no watermark text to apply it to. Full page grayscale for existing content is not yet implemented.');
->>>>>>> main
           }
         }
       }
 
-      // Duplicate detection (applied to the final merged document)
-      // Ensure finalMergedDoc is not null before processing for duplicates
       const dupIdx = finalMergedDoc ? await detectDuplicates(finalMergedDoc) : [];
       setDuplicates(dupIdx);
 
-      // PDF Save options based on compression level
       const saveOptions: PDFSaveOptions = {};
       if (compressionLevel === 'none') {
         saveOptions.useObjectStreams = false;
@@ -492,7 +438,6 @@ export default function PdfMergeTool() {
         saveOptions.useObjectStreams = true;
       }
 
-      // Save merged PDF (ensure finalMergedDoc is not null)
       if (!finalMergedDoc) {
         throw new Error("PDF document creation failed.");
       }
@@ -512,14 +457,9 @@ export default function PdfMergeTool() {
       // Track successful merge operation
       trackStat("mergeOps", "PDF", "merge", {
         totalFiles: orderedFiles.length,
-<<<<<<< HEAD
         totalSizeMB: parseFloat((orderedFiles.reduce((acc, f) => acc + f.size, 0) / (1024 * 1024)).toFixed(2)),
         userTier: userRole,
         compression: compressionLevel, // Added compression level
-=======
-        totalSizeMB: parseFloat((orderedFiles.reduce((acc, f) => acc + f.size, 0) / (1024*1024)).toFixed(2)),
-        userTier: userRole
->>>>>>> main
       });
 
       // Track features used
@@ -534,12 +474,9 @@ export default function PdfMergeTool() {
       }
       if (dupIdx.length > 0) { // dupIdx from detectDuplicates
         trackStat("featureUsed", "PDF", "merge", { featureName: "duplicateDetection", userTier: userRole });
-<<<<<<< HEAD
       }
       if (compressionLevel !== 'none') {
         trackStat("featureUsed", "PDF", "merge", { featureName: "compression_" + compressionLevel, userTier: userRole });
-=======
->>>>>>> main
       }
 
     } catch (err) {
@@ -703,11 +640,13 @@ export default function PdfMergeTool() {
         </>
       )}
 
-      {/* Common Controls (Watermark, Compression, etc.) - visible in both views or only file view? For now, only file view implied by placement */}
+      {/* Common Controls and Action Buttons - Conditionally rendered based on isPageView */}
       {!isPageView && (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Watermark Text</label>
+        <>
+          {/* Watermark controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium mb-1">Watermark Text</label>
           <input
             value={watermarkText}
             onChange={(e) => setWatermarkText(e.target.value)}
@@ -767,19 +706,6 @@ export default function PdfMergeTool() {
             Attempt to reduce file size. Effectiveness may vary. Available to all users.
           </p>
         </div>
-        {/* Grayscale Checkbox */}
-        <div className="md:col-span-2 flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="grayscaleCheckbox"
-            checked={applyGrayscale}
-            onChange={(e) => setApplyGrayscale(e.target.checked)}
-            className="h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
-          />
-          <label htmlFor="grayscaleCheckbox" className="text-sm font-medium">
-            Apply Grayscale Effect (to watermark)
-          </label>
-        </div>
       </div>
 
       {/* Action buttons */}
@@ -805,10 +731,11 @@ export default function PdfMergeTool() {
           Download
         </button>
       </div>
+        </>
+      )}
 
-      {/* OCR Result (premium) */}
+      {/* OCR Result (premium) - This and Duplicate Pages info are always potentially visible below the main view */}
       {hasFeature(userRole, 'OCR') ? (
-<<<<<<< HEAD
         ocrText ? ( // Only show if there's text and feature is enabled
           <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
             <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
@@ -822,12 +749,6 @@ export default function PdfMergeTool() {
              <p className="text-sm text-gray-600 dark:text-gray-300">
               OCR text will appear here after processing if text is found.
             </p>
-=======
-        ocrText && (
-          <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
-            <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
-            <pre className="whitespace-pre-wrap text-sm max-h-60 overflow-y-auto">{ocrText}</pre>
->>>>>>> main
           </div>
         )
       ) : (
