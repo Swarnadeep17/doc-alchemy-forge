@@ -89,23 +89,26 @@ export const ToolAccordion = () => {
             >
               {category}
             </button>
-            {expanded[category] && (
-              <div className="bg-gradient-to-bl from-black/60 to-white/10 pb-4 px-2 sm:px-6">
-                <ul>
-                  {Object.entries(tools).map(([tool, toolInfo]) => {
-                    const visits = stats?.tools?.[category]?.[tool]?.visits;
-                    return (
-                      <ToolItem
-                        key={tool}
-                        title={tool[0].toUpperCase() + tool.slice(1)}
-                        toolInfo={toolInfo}
-                        visits={visits}
-                      />
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
+            <div
+              className={`bg-gradient-to-bl from-black/60 to-white/10 pb-4 px-2 sm:px-6 transition-all duration-500 ease-in-out overflow-hidden ${
+                expanded[category] ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
+              }`}
+              aria-hidden={!expanded[category]}
+            >
+              <ul>
+                {Object.entries(tools).map(([tool, toolInfo]) => {
+                  const visits = stats?.tools?.[category]?.[tool]?.visits;
+                  return (
+                    <ToolItem
+                      key={tool}
+                      title={tool[0].toUpperCase() + tool.slice(1)}
+                      toolInfo={toolInfo}
+                      visits={visits}
+                    />
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         ))}
       </div>
