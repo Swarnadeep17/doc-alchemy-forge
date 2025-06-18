@@ -1,6 +1,28 @@
 import { useState, useRef, useEffect, useCallback, useReducer } from 'react';
+import { useAuth } from '../../../../context/AuthContext';
+
+// Tier Constants
+const TIER_LIMITS = {
+  FREE: 20 * 1024 * 1024, // 20MB
+  PREMIUM: 100 * 1024 * 1024 // 100MB
+};
+
+// Feature Flags
+const hasFeature = (user: any, feature: string) => {
+  if (!user) return false; // Anonymous users
+  switch(feature) {
+    case 'OCR':
+    case 'ADVANCED_WATERMARK':
+    case 'BULK_OPS':
+      return ['premium', 'admin', 'superadmin'].includes(user.role);
+    default:
+      return true;
+  }
+};
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist';
+import * as tf from '@tensorflow/tfjs';
+import { createWorker } from 'tesseract.js';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
@@ -40,16 +62,14 @@ const initialState: AppState = {
   error: null
 };
 
-// File validation constants
-const MAX_FILE_SIZE_MB = 10;
-const ALLOWED_MIME_TYPES = ['application/pdf'];
-
-function validateFile(file: File): string | null {
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+// File validation with tier support
+function validateFile(file: File, user: any): string | null {
+  if (!['application/pdf'].includes(file.type)) {
     return 'Invalid file type. Only PDF files are allowed.';
   }
-  if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-    return `File size exceeds ${MAX_FILE_SIZE_MB}MB limit.`;
+  const maxSize = user?.role ? TIER_LIMITS.PREMIUM : TIER_LIMITS.FREE;
+  if (file.size > maxSize) {
+    return `File size exceeds ${user?.role ? '100MB' : '20MB'} limit.`;
   }
   return null;
 }
@@ -103,7 +123,9 @@ async function generateThumbnail(pdf: any, pageNumber: number): Promise<string> 
 }
 
 function PDFMergeTool() {
-function reducer(state: AppState, action: any): AppState {
+  const { user } = useAuth();
+  
+  function reducer(state: AppState, action: any): AppState {
   switch (action.type) {
     case 'SET_FILES': return { ...state, files: action.payload };
     case 'SET_PAGES': return { ...state, allPages: action.payload };
@@ -126,7 +148,7 @@ function reducer(state: AppState, action: any): AppState {
 
     try {
       const files = Array.from(e.target.files);
-      const validationErrors = files.map(validateFile).filter(Boolean);
+      const validationErrors = files.map(file => validateFile(file, user)).filter(Boolean);
       
       if (validationErrors.length) {
         dispatch({ type: 'SET_ERROR', payload: validationErrors[0] });
@@ -161,25 +183,138 @@ function reducer(state: AppState, action: any): AppState {
     }
   };
 
-  const [settings, setSettings] = useState({
+const [settings, setSettings] = useState({
     similarityThreshold: 0.85,
-    userTier: 'free',
     watermark: {
+      enabled: hasFeature(user, 'ADVANCED_WATERMARK'),
       text: 'Confidential',
       position: 'center',
       fontSize: 40,
       color: '#CCCCCC',
-      opacity: 0.4
+      opacity: 0.4,
+      rotation: -45
+    },
+    ocr: {
+      enabled: hasFeature(user, 'OCR'),
+      languages: ['eng']
+    },
+    duplicateDetection: {
+      enabled: hasFeature(user, 'AI_DUPLICATE_DETECTION'),
+      threshold: 0.9
     }
   });
 
+  // Live watermark preview
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const drawPreview = () => {
+      const canvas = canvasRef.current;
+      if (!canvas || !settings.watermark.enabled) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw watermark preview
+      ctx.save();
+      ctx.globalAlpha = settings.watermark.opacity;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(settings.watermark.rotation * Math.PI / 180); // Convert degrees to radians
+      ctx.fillStyle = settings.watermark.color;
+      ctx.font = `${settings.watermark.fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(settings.watermark.text, 0, 0);
+      ctx.restore();
+    };
+    
+    drawPreview();
+  }, [settings.watermark]);
+
   // Rest of implementation will follow...
+  // Drag and drop reordering
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(state.allPages);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    dispatch({ type: 'SET_PAGES', payload: items });
+  };
+
+  const detectDuplicates = async (pages: PDFPage[]) => {
+    if (!settings.duplicateDetection.enabled) return pages;
+    
+    try {
+      // Load TensorFlow model
+      const model = await tf.loadLayersModel('https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json');
+      
+      // Extract features from each page
+      const features = await Promise.all(pages.map(async (page) => {
+        const img = new Image();
+        img.src = page.thumbnail;
+        await new Promise(resolve => img.onload = resolve);
+        
+        const tensor = tf.browser.fromPixels(img)
+          .resizeNearestNeighbor([224, 224])
+          .toFloat()
+          .expandDims();
+        
+        const predictions = model.predict(tensor) as tf.Tensor;
+        const features = await predictions.data();
+        return new Float32Array(features);
+      }));
+    
+      // Compare features and mark duplicates
+      return pages.map((page, i) => {
+        for (let j = 0; j < i; j++) {
+          const similarity = cosineSimilarity(features[i], features[j]);
+          if (similarity > settings.duplicateDetection.threshold) {
+            return { ...page, duplicate: true };
+          }
+        }
+        return page;
+      });
+    } catch (error) {
+      console.error('Duplicate detection error:', error);
+      return pages;
+    }
+  };
+
+  const extractTextWithOCR = async (pdfBytes: Uint8Array) => {
+    if (!settings.ocr.enabled) return null;
+    
+    try {
+      const worker = await createWorker();
+      await worker.load();
+      await worker.load();
+      
+      // Convert PDF bytes to image data URL for OCR
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const { data } = await worker.recognize(url);
+      await worker.terminate();
+      URL.revokeObjectURL(url);
+      
+      return data.text;
+    } catch (error) {
+      console.error('OCR Error:', error);
+      return null;
+    }
+  };
+
   const handleMerge = async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const selectedPages = state.allPages.filter(page => page.selected);
+      let selectedPages = state.allPages.filter(page => page.selected);
+      selectedPages = await detectDuplicates(selectedPages);
       if (selectedPages.length === 0) {
         throw new Error('No pages selected for merging');
       }
@@ -198,11 +333,37 @@ function reducer(state: AppState, action: any): AppState {
         if (!srcPdf) continue;
         
         const [copiedPage] = await mergedPdf.copyPages(srcPdf, [page.originalIndex]);
-        mergedPdf.addPage(copiedPage);
+        const newPage = mergedPdf.addPage(copiedPage);
+        
+        // Apply watermark if enabled
+        if (settings.watermark.enabled) {
+          const { width, height } = newPage.getSize();
+          const fontSize = settings.watermark.fontSize;
+          const text = settings.watermark.text;
+          
+          newPage.drawText(text, {
+            x: width / 2,
+            y: height / 2,
+            size: fontSize,
+            color: rgb(
+              parseInt(settings.watermark.color.slice(1, 3), 16) / 255,
+              parseInt(settings.watermark.color.slice(3, 5), 16) / 255,
+              parseInt(settings.watermark.color.slice(5, 7), 16) / 255
+            ),
+            opacity: settings.watermark.opacity,
+            rotate: degrees(settings.watermark.rotation)
+          });
+        }
       }
 
       const mergedPdfBytes = await mergedPdf.save();
       dispatch({ type: 'SET_MERGED_PDF', payload: mergedPdfBytes });
+      
+      // Extract text if OCR enabled
+      if (settings.ocr.enabled) {
+        const extractedText = await extractTextWithOCR(mergedPdfBytes);
+        console.log('Extracted text:', extractedText);
+      }
       
       // Create download link
       const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
@@ -220,6 +381,17 @@ function reducer(state: AppState, action: any): AppState {
     }
   };
 
+  // Helper function for cosine similarity
+  function cosineSimilarity(a: Float32Array, b: Float32Array) {
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      magA += a[i] * a[i];
+      magB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">PDF Merge Tool</h1>
@@ -227,6 +399,53 @@ function reducer(state: AppState, action: any): AppState {
       {state.error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
           {state.error}
+        </div>
+      )}
+
+      {!user?.role && (
+        <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-medium mb-3">Feature Comparison</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-4">Feature</th>
+                  <th className="text-left py-2 px-4">Free</th>
+                  <th className="text-left py-2 px-4">Premium</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-2 px-4">Max File Size</td>
+                  <td className="py-2 px-4">20MB</td>
+                  <td className="py-2 px-4">100MB</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 px-4">Watermarking</td>
+                  <td className="py-2 px-4">❌</td>
+                  <td className="py-2 px-4">✅</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 px-4">AI Duplicate Detection</td>
+                  <td className="py-2 px-4">❌</td>
+                  <td className="py-2 px-4">✅</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 px-4">OCR Text Extraction</td>
+                  <td className="py-2 px-4">❌</td>
+                  <td className="py-2 px-4">✅</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 px-4">Bulk Processing</td>
+                  <td className="py-2 px-4">❌</td>
+                  <td className="py-2 px-4">✅</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 text-sm text-gray-600">
+            Upgrade to Premium for advanced features and higher limits.
+          </div>
         </div>
       )}
 
@@ -239,13 +458,27 @@ function reducer(state: AppState, action: any): AppState {
           multiple
           className="hidden"
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition"
-          disabled={state.isProcessing}
-        >
-          {state.isProcessing ? 'Processing...' : 'Add PDF Files'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition"
+            disabled={state.isProcessing}
+          >
+            {state.isProcessing ? 'Processing...' : 'Add PDF Files'}
+          </button>
+          {hasFeature(user, 'BULK_OPS') && (
+            <button
+              onClick={() => {
+                // In a real implementation, this would open a folder selection dialog
+                alert('Bulk folder processing is a premium feature');
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg transition"
+              disabled={state.isProcessing}
+            >
+              Add Folder (Premium)
+            </button>
+          )}
+        </div>
       </div>
 
       {state.allPages.length > 0 && (
