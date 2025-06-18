@@ -22,13 +22,23 @@ jobs:
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.npm
+          path: |
+            ~/.npm
+            node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm install
+
+      - name: Cache Vite build output
+        uses: actions/cache@v4
+        with:
+          path: dist
+          key: ${{ runner.os }}-vite-dist-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-dist-
 
       - name: Build project
         run: npm run build
