@@ -76,7 +76,7 @@ export default function PdfMergeTool() {
   const [orderedFiles, setOrderedFiles] = useState<File[]>([]);
   const [mergedBlobUrl, setMergedBlobUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [watermarkText, setWatermarkText] = useState('Confidential');
+  const [watermarkText, setWatermarkText] = useState('');
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.3);
   // Removed watermarkRotation and watermarkFontSize state
   const [duplicates, setDuplicates] = useState<number[]>([]); // indices of duplicate pages
@@ -358,7 +358,10 @@ export default function PdfMergeTool() {
   // -----------------------------------------------------------------------
   const handleMerge = async () => {
     const useDetailedPagesOrder = isPageView && detailedPages.length > 0;
+<<<<<<< HEAD
+=======
 
+>>>>>>> main
     const itemCount = useDetailedPagesOrder ? detailedPages.length : orderedFiles.length;
 
     if (itemCount === 0) {
@@ -366,6 +369,15 @@ export default function PdfMergeTool() {
       return;
     }
     if (!isPageView && orderedFiles.length < 2) {
+<<<<<<< HEAD
+      alert('Please select at least two PDF files to merge when in File View, or switch to Page View to process individual pages.');
+      return;
+    }
+
+    setIsProcessing(true);
+    const pdfLibDocCache = new Map<string, PDFDocument>(); // Cache for pdf-lib documents
+    const pdfJsDocCache = new Map<string, any>(); // Cache for pdfjs-dist documents
+=======
       // In file view, still require at least 2 files to "merge"
       alert('Please select at least two PDF files to merge when in File View, or switch to Page View to process individual pages.');
       return;
@@ -374,12 +386,130 @@ export default function PdfMergeTool() {
 
     setIsProcessing(true);
     const sourcePdfCache = new Map<string, PDFDocument>();
+>>>>>>> main
     let finalMergedDoc: PDFDocument | null = null;
 
     try {
       finalMergedDoc = await PDFDocument.create();
       const standardFont = await finalMergedDoc.embedFont(StandardFonts.Helvetica);
 
+<<<<<<< HEAD
+      const processPageForGrayscale = async (
+        pdfJsPage: any, // type is pdfjs.PDFPageProxy
+        targetPdfDoc: PDFDocument,
+        fontForWatermark: any // type is PDFFont
+      ) => {
+        const viewport = pdfJsPage.getViewport({ scale: 1.5 }); // Use scale 1.5 for better quality
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+
+        if (!context) throw new Error('Failed to get canvas context for grayscale processing.');
+
+        await pdfJsPage.render({ canvasContext: context, viewport: viewport }).promise;
+
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          data[i] = avg; // red
+          data[i + 1] = avg; // green
+          data[i + 2] = avg; // blue
+        }
+        context.putImageData(imageData, 0, 0);
+
+        // Use a Promise to handle canvas.toBlob conversion to ArrayBuffer
+        const imageBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              try {
+                const buffer = await blob.arrayBuffer();
+                resolve(buffer);
+              } catch (e) {
+                reject(e);
+              }
+            } else {
+              reject(new Error('Canvas toBlob returned null'));
+            }
+          }, 'image/png'); // Using PNG for better quality of rasterized text/vectors
+        });
+
+        const pdfImage = await targetPdfDoc.embedPng(imageBytes);
+        const newPage = targetPdfDoc.addPage([viewport.width, viewport.height]);
+        newPage.drawImage(pdfImage, { x: 0, y: 0, width: viewport.width, height: viewport.height });
+
+        // Apply watermark on top of the grayscaled image
+        if (watermarkText) {
+          // Watermark color should contrast with grayscale; using a mid-gray but could be black/white
+          const wmColor = rgb(0.3, 0.3, 0.3); // Watermark color fixed, not affected by applyGrayscale flag here
+          newPage.drawText(watermarkText, {
+            x: newPage.getWidth() / 2, y: newPage.getHeight() / 2, size: 36, font: fontForWatermark,
+            color: wmColor, rotate: degrees(-45), opacity: watermarkOpacity,
+          });
+        }
+        return newPage; // Return the new page with grayscaled image and watermark
+      };
+
+      if (useDetailedPagesOrder) {
+        for (const pageInfo of detailedPages) {
+          const fileArrayBuffer = await pageInfo.originalFile.arrayBuffer(); // Get buffer once
+
+          if (applyGrayscale) {
+            let pdfJsDoc = pdfJsDocCache.get(pageInfo.fileId);
+            if (!pdfJsDoc) {
+              pdfJsDoc = await pdfjs.getDocument({ data: new Uint8Array(fileArrayBuffer) }).promise;
+              pdfJsDocCache.set(pageInfo.fileId, pdfJsDoc);
+            }
+            const pdfJsPage = await pdfJsDoc.getPage(pageInfo.originalPageIndex + 1);
+            await processPageForGrayscale(pdfJsPage, finalMergedDoc, standardFont);
+          } else {
+            let pdfLibDoc = pdfLibDocCache.get(pageInfo.fileId);
+            if (!pdfLibDoc) {
+              pdfLibDoc = await PDFDocument.load(fileArrayBuffer); // Use the same buffer
+              pdfLibDocCache.set(pageInfo.fileId, pdfLibDoc);
+            }
+            const [copiedPage] = await finalMergedDoc.copyPages(pdfLibDoc, [pageInfo.originalPageIndex]);
+            if (watermarkText) { // applyGrayscale only affects watermark color if page isn't full grayscale
+              const { width, height } = copiedPage.getSize();
+              const R = 0.5, G = 0.5, B = 0.5; // Default for non-grayscale page watermark
+              copiedPage.drawText(watermarkText, {
+                x: width / 2, y: height / 2, size: 36, font: standardFont,
+                color: rgb(R, G, B), rotate: degrees(-45), opacity: watermarkOpacity,
+              });
+            }
+            finalMergedDoc.addPage(copiedPage);
+          }
+        }
+      } else { // File View Merge Logic
+        for (const file of orderedFiles) {
+          const fileArrayBuffer = await file.arrayBuffer(); // Get buffer once
+
+          if (applyGrayscale) {
+            let pdfJsDoc = pdfJsDocCache.get(`${file.name}-${file.lastModified}`);
+            if (!pdfJsDoc) {
+              pdfJsDoc = await pdfjs.getDocument({ data: new Uint8Array(fileArrayBuffer) }).promise;
+              pdfJsDocCache.set(`${file.name}-${file.lastModified}`, pdfJsDoc);
+            }
+            for (let i = 0; i < pdfJsDoc.numPages; i++) {
+              const pdfJsPage = await pdfJsDoc.getPage(i + 1);
+              await processPageForGrayscale(pdfJsPage, finalMergedDoc, standardFont);
+            }
+          } else {
+            const pdfLibDoc = await PDFDocument.load(fileArrayBuffer);
+            const copiedPages = await finalMergedDoc.copyPages(pdfLibDoc, pdfLibDoc.getPageIndices());
+            for (const page of copiedPages) {
+              if (watermarkText) {
+                const { width, height } = page.getSize();
+                const R = 0.5, G = 0.5, B = 0.5; // Default for non-grayscale page watermark
+                page.drawText(watermarkText, {
+                  x: width / 2, y: height / 2, size: 36, font: standardFont,
+                  color: rgb(R, G, B), rotate: degrees(-45), opacity: watermarkOpacity,
+                });
+              }
+              finalMergedDoc.addPage(page);
+            }
+=======
       if (useDetailedPagesOrder) {
         // --- Page View Merge Logic ---
         for (const pageInfo of detailedPages) {
@@ -424,6 +554,7 @@ export default function PdfMergeTool() {
               console.log('Grayscale effect selected, but no watermark. Full page grayscale not yet implemented.');
             }
             finalMergedDoc.addPage(page);
+>>>>>>> main
           }
         }
       }
@@ -685,7 +816,11 @@ export default function PdfMergeTool() {
             Apply Grayscale Effect
           </label>
           <p className="text-xs text-gray-500 dark:text-gray-400">
+<<<<<<< HEAD
+            (Converts entire page to grayscale. May rasterize content.)
+=======
             (Converts watermark text to grayscale)
+>>>>>>> main
           </p>
         </div>
         {/* Compression Level Select */}
