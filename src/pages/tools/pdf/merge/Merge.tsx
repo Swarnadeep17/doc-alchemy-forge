@@ -7,8 +7,9 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
-import { getDatabase, ref, update, increment } from 'firebase/database';
-import { useAuth } from '../hooks/useAuth'; // <-- project‑specific auth hook that returns {user, role}
+// import { getDatabase, ref, update, increment } from 'firebase/database'; // Firebase specific stats removed
+import { useAuth, UserRole } from '../../../../context/AuthContext'; // <-- project‑specific auth hook that returns {user, role}
+import { trackStat } from '../../../../lib/statsManager';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import * as tf from '@tensorflow/tfjs';
@@ -21,15 +22,16 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 // ---------------------------------------------------------------------------
 // 1. Account Tier System & Constants
 // ---------------------------------------------------------------------------
-const TIER_LIMITS: Record<string, number> = {
+const TIER_LIMITS: Record<UserRole, number> = {
+  anonymous: 20 * 1024 * 1024, // 20 MB
   free: 20 * 1024 * 1024, // 20 MB
   premium: 100 * 1024 * 1024, // 100 MB
-  admin: 100 * 1024 * 1024,
-  superadmin: 100 * 1024 * 1024,
+  admin: 100 * 1024 * 1024, // 100 MB
+  superadmin: 100 * 1024 * 1024, // 100 MB
 };
 
 // List premium‑only feature keys
-const PREMIUM_FEATURES = ['OCR', 'ADVANCED_WATERMARK', 'PRIORITY_QUEUE'];
+const PREMIUM_FEATURES = ['OCR', 'ADVANCED_WATERMARK'];
 
 // Feature gate utility
 function hasFeature(userRole: string, feature: string): boolean {
@@ -44,8 +46,10 @@ const DUPLICATE_THRESHOLD = 0.98;
 // Component
 // ---------------------------------------------------------------------------
 export default function PdfMergeTool() {
-  const { user, role } = useAuth();
-  const db = getDatabase();
+  const { user } = useAuth();
+  // const db = getDatabase(); // Firebase specific stats removed
+
+  const userRole: UserRole = user?.role || 'anonymous';
 
   // Local component state
   const [files, setFiles] = useState<File[]>([]);
@@ -58,25 +62,11 @@ export default function PdfMergeTool() {
   const [watermarkFontSize, setWatermarkFontSize] = useState(48);
   const [duplicates, setDuplicates] = useState<number[]>([]); // indices of duplicate pages
   const [ocrText, setOcrText] = useState<string>('');
-
-  // -----------------------------------------------------------------------
-  // Helper: write stats
-  // -----------------------------------------------------------------------
-  const writeStats = useCallback(
-    async (field: 'visits' | 'downloads' | 'mergeOps' | 'errors', incr = 1) => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const statsPath = `stats/${year}/${month}/${day}/tools/PDF/merge`;
-      await update(ref(db, statsPath), { [field]: increment(incr) });
-    },
-    [db]
-  );
+  const [applyGrayscale, setApplyGrayscale] = useState(false);
 
   // On mount: increment visits
   useEffect(() => {
-    writeStats('visits').catch(console.error);
+    trackStat("visits", "PDF", "merge");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -87,14 +77,37 @@ export default function PdfMergeTool() {
     if (!e.target.files) return;
     const selected = Array.from(e.target.files);
 
-    // Validate size per file & total
-    const limit = TIER_LIMITS[role] ?? TIER_LIMITS.free;
+    const limit = TIER_LIMITS[userRole] ?? TIER_LIMITS.anonymous; // Default to anonymous if role somehow not in TIER_LIMITS
+
+    // 1. Validate total size for the current selection
+    const totalSize = selected.reduce((acc, file) => acc + file.size, 0);
+
+    if (totalSize > limit) {
+      alert(
+        `Total selected file size (${(totalSize / 1024 / 1024).toFixed(2)} MB) exceeds your ${userRole} tier limit of ${(limit / 1024 / 1024).toFixed(2)} MB.`
+      );
+      trackStat("errors", "PDF", "merge", { errorContext: "fileSizeValidationTotal", userTier: userRole, totalSizeMB: parseFloat((totalSize / (1024*1024)).toFixed(2)), limitMB: parseFloat((limit / (1024*1024)).toFixed(2)) });
+      return; // Do not update files state
+    }
+
+    // 2. Validate individual file sizes (optional, but good practice)
+    // This check might seem redundant if total size is already checked, but it can give more specific feedback.
+    // For this subtask, the primary requirement is the total size check above.
+    // Depending on desired UX, this individual check can be kept or removed.
+    // Keeping it for now as it doesn't conflict with the primary requirement.
     for (const f of selected) {
-      if (f.size > limit) {
-        alert(`File ${f.name} exceeds your ${role} tier limit of ${limit / 1e6} MB.`);
-        return;
+      // A single file itself cannot exceed the total limit (logically covered by totalSize check if there's only one file)
+      // However, if individual files could have a *different, smaller* limit than the total, this loop would be essential.
+      // For now, assuming individual file limit is the same as the total session limit.
+      if (f.size > limit) { // This check is somewhat redundant if totalSize passed, unless a single file itself is larger than the tier limit (e.g. free tier 20MB, one file is 25MB)
+        alert(
+          `File ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB) exceeds your ${userRole} tier limit of ${(limit / 1024 / 1024).toFixed(2)} MB.`
+        );
+        trackStat("errors", "PDF", "merge", { errorContext: "fileSizeValidationIndividual", userTier: userRole, fileName: f.name, fileSizeMB: parseFloat((f.size / (1024*1024)).toFixed(2)), limitMB: parseFloat((limit / (1024*1024)).toFixed(2)) });
+        return; // Do not update files state
       }
     }
+
     setFiles(selected);
     setOrderedFiles(selected);
   };
@@ -116,6 +129,9 @@ export default function PdfMergeTool() {
   // -----------------------------------------------------------------------
   const detectDuplicates = useCallback(async (pdfDoc: PDFDocument) => {
     try {
+      // Removed 'db' dependency from useCallback as writeStats is removed.
+      // If detectDuplicates needs to be a useCallback, its dependencies should be reviewed.
+      // For now, assuming it's fine as a regular async function or if its dependencies are correctly managed.
       const pageImages: Float32Array[] = [];
       const embed = await tf.loadGraphModel('https://tfhub.dev/google/imagenet/inception_v3/feature_vector/4', {
         fromTFHub: true,
@@ -153,10 +169,10 @@ export default function PdfMergeTool() {
       return dupIndices;
     } catch (err) {
       console.error('Duplicate detection error', err);
-      writeStats('errors').catch(console.error);
+      trackStat("errors", "PDF", "merge", { errorContext: "duplicateDetection", userTier: userRole, errorMessage: err instanceof Error ? err.message : String(err) });
       return [];
     }
-  }, [writeStats]);
+  }, [userRole]); // Added userRole as a dependency for trackStat, removed writeStats
 
   // -----------------------------------------------------------------------
   // Merge handler
@@ -169,9 +185,11 @@ export default function PdfMergeTool() {
     setIsProcessing(true);
     try {
       // Client priority: premium+ immediate, free: artificial delay to simulate queue.
-      if (!hasFeature(role, 'PRIORITY_QUEUE')) {
-        await new Promise((res) => setTimeout(res, 2000));
-      }
+      // PRIORITY_QUEUE feature was removed. If specific delay logic is still needed for free/anonymous, it should be handled differently.
+      // For now, removing the explicit delay based on PRIORITY_QUEUE.
+      // if (!hasFeature(userRole, 'PRIORITY_QUEUE')) { // PRIORITY_QUEUE is no longer a feature
+      //   await new Promise((res) => setTimeout(res, 2000));
+      // }
 
       const merged = await PDFDocument.create();
       const standardFont = await merged.embedFont(StandardFonts.Helvetica);
@@ -184,17 +202,25 @@ export default function PdfMergeTool() {
           // Watermark all pages if watermark text provided
           if (watermarkText) {
             const { width, height } = page.getSize();
+            let R = 0.5, G = 0.5, B = 0.5; // Default watermark color (gray)
+            if (applyGrayscale) {
+              // Grayscale keeps R, G, B components equal.
+              // Using the existing default gray, but could be made configurable.
+              R = 0.4; G = 0.4; B = 0.4; // A slightly darker gray for grayscale effect
+            }
             page.drawText(watermarkText, {
               x: width / 2,
               y: height / 2,
               size: watermarkFontSize,
               font: standardFont,
-              color: rgb(0.5, 0.5, 0.5),
+              color: rgb(R, G, B),
               rotate: degrees(watermarkRotation),
               opacity: watermarkOpacity,
               xSkew: 0,
               ySkew: 0,
             });
+          } else if (applyGrayscale) {
+            console.log('Grayscale effect selected, but no watermark text to apply it to. Full page grayscale for existing content is not yet implemented.');
           }
           merged.addPage(page);
         }
@@ -211,15 +237,37 @@ export default function PdfMergeTool() {
       setMergedBlobUrl(blobUrl);
 
       // OCR (premium feature)
-      if (hasFeature(role, 'OCR')) {
+      if (hasFeature(userRole, 'OCR')) {
         const { data } = await Tesseract.recognize(blob, 'eng');
         setOcrText(data.text);
+      } else {
+        setOcrText(''); // Clear any previous OCR text if user loses feature access
       }
 
-      writeStats('mergeOps').catch(console.error);
+      // Track successful merge operation
+      trackStat("mergeOps", "PDF", "merge", {
+        totalFiles: orderedFiles.length,
+        totalSizeMB: parseFloat((orderedFiles.reduce((acc, f) => acc + f.size, 0) / (1024*1024)).toFixed(2)),
+        userTier: userRole
+      });
+
+      // Track features used
+      if (watermarkText) {
+        trackStat("featureUsed", "PDF", "merge", { featureName: "watermark", userTier: userRole });
+      }
+      if (applyGrayscale) {
+        trackStat("featureUsed", "PDF", "merge", { featureName: "grayscale", userTier: userRole });
+      }
+      if (hasFeature(userRole, 'OCR') && ocrText) { // ocrText being populated implies successful OCR
+        trackStat("featureUsed", "PDF", "merge", { featureName: "ocr", userTier: userRole });
+      }
+      if (dupIdx.length > 0) { // dupIdx from detectDuplicates
+        trackStat("featureUsed", "PDF", "merge", { featureName: "duplicateDetection", userTier: userRole });
+      }
+
     } catch (err) {
       console.error(err);
-      writeStats('errors').catch(console.error);
+      trackStat("errors", "PDF", "merge", { errorContext: "mergeProcessing", userTier: userRole, errorMessage: err instanceof Error ? err.message : String(err) });
     } finally {
       setIsProcessing(false);
     }
@@ -234,7 +282,7 @@ export default function PdfMergeTool() {
     a.href = mergedBlobUrl;
     a.download = 'merged.pdf';
     a.click();
-    writeStats('downloads').catch(console.error);
+    trackStat("downloads", "PDF", "merge", { userTier: userRole });
   };
 
   // -----------------------------------------------------------------------
@@ -263,7 +311,7 @@ export default function PdfMergeTool() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">PDF Merge</h1>
         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200">
-          {role.toUpperCase()}
+          {userRole.toUpperCase()}
         </span>
       </div>
 
@@ -338,6 +386,19 @@ export default function PdfMergeTool() {
             className="w-full p-2 border rounded bg-white dark:bg-slate-800"
           />
         </div>
+        {/* Grayscale Checkbox */}
+        <div className="md:col-span-2 flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="grayscaleCheckbox"
+            checked={applyGrayscale}
+            onChange={(e) => setApplyGrayscale(e.target.checked)}
+            className="h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+          />
+          <label htmlFor="grayscaleCheckbox" className="text-sm font-medium">
+            Apply Grayscale Effect (to watermark)
+          </label>
+        </div>
       </div>
 
       {/* Action buttons */}
@@ -365,10 +426,18 @@ export default function PdfMergeTool() {
       </div>
 
       {/* OCR Result (premium) */}
-      {ocrText && (
-        <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
-          <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
-          <pre className="whitespace-pre-wrap text-sm max-h-60 overflow-y-auto">{ocrText}</pre>
+      {hasFeature(userRole, 'OCR') ? (
+        ocrText && (
+          <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
+            <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
+            <pre className="whitespace-pre-wrap text-sm max-h-60 overflow-y-auto">{ocrText}</pre>
+          </div>
+        )
+      ) : (
+        <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 p-4 rounded mb-6 text-center">
+          <p className="text-sm text-yellow-700 dark:text-yellow-200">
+            Text extraction (OCR) is a premium feature. Upgrade to enable.
+          </p>
         </div>
       )}
 
