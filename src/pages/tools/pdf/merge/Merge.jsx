@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist/webpack';
-import { incrementStat } from '../../../lib/incrementStats';
+import { incrementStat } from '../../lib/incrementStats';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 import * as tf from '@tensorflow/tfjs';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
