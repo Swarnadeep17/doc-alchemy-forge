@@ -1,60 +1,75 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useLiveStats } from "../hooks/useLiveStats";
 
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect, useState } from "react";
-import { useLiveStats } from "@/hooks/useLiveStats";
+interface ToolInfo {
+  status: "available" | "coming_soon";
+  path?: string;
+}
 
-// Types for tool status
-type ToolStatus = { [category: string]: { [tool: string]: "available" | "coming_soon" } };
+interface ToolStatus {
+  [category: string]: {
+    [tool: string]: ToolInfo;
+  }
+}
 
-// Futuristic, monochrome stat item
-const StatDisplay = ({count}: {count: number}) => (
-  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/15 font-mono font-bold text-base text-white shadow-inner backdrop-blur select-none animate-fade-in">
-    <span>
-      {count.toLocaleString()}
-    </span>
-    <span className="ml-1 text-xs font-medium text-gray-300/70 tracking-tight">USES</span>
-  </div>
-);
+const defaultToolStatus: ToolStatus = {
+  PDF: {
+    merge: { status: "available", path: "/tools/pdf/merge" },
+    compress: { status: "coming_soon" }
+  },
+  Image: {
+    convert: { status: "coming_soon" }
+  }
+};
 
-// Tool item with modern monochrome feel
 const ToolItem = ({
-  title, status, toolKey, stat,
-}: { title: string; status: "available" | "coming_soon"; toolKey: string; stat?: number }) => (
+  title,
+  toolInfo,
+  visits,
+}: {
+  title: string;
+  toolInfo: ToolInfo;
+  visits?: number;
+}) => (
   <li className="flex items-center justify-between gap-4 my-2 py-2 px-4 rounded-xl group border border-white/10 transition-all bg-gradient-to-tr from-black/40 to-white/5 hover:shadow-lg hover:scale-105 hover:bg-white/8 backdrop-blur animate-fade-in">
-    <span className="font-mono text-white text-base sm:text-lg tracking-widest uppercase drop-shadow">
-      {title}
-    </span>
-    <span>
-      {status === "available" ? (
-        stat === undefined
-          ? <Skeleton className="w-12 h-6 bg-gray-700 rounded-md mx-2" />
-          : <StatDisplay count={stat}/>
-      ) : (
+    {toolInfo.status === "available" && toolInfo.path ? (
+      <Link to={toolInfo.path} className="w-full flex justify-between items-center">
+        <span className="font-mono text-white text-base sm:text-lg tracking-widest uppercase drop-shadow">
+          {title}
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-green-500/20 text-green-400 uppercase font-bold tracking-widest border border-green-500/20">
+            Available
+          </span>
+          {typeof visits === "number" && (
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-white uppercase font-bold tracking-widest border border-white/20">
+              {visits.toLocaleString()} views
+            </span>
+          )}
+        </span>
+      </Link>
+    ) : (
+      <>
+        <span className="font-mono text-white/50 text-base sm:text-lg tracking-widest uppercase drop-shadow">
+          {title}
+        </span>
         <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/50 uppercase font-bold tracking-widest border border-white/10 blur-[0.5px]">
           Coming Soon
         </span>
-      )}
-    </span>
+      </>
+    )}
   </li>
 );
 
 export const ToolAccordion = () => {
-  const [toolStatus, setToolStatus] = useState<ToolStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ PDF: true });
   const { stats } = useLiveStats();
 
-  // Debug
-  console.log("ToolAccordion: liveStats tools", stats?.tools);
+  const toggleCategory = (category: string) => {
+    setExpanded(prev => ({ ...prev, [category]: !prev[category] }));
+  };
 
-  useEffect(() => {
-    fetch("/tools/status.json")
-      .then(r => r.json())
-      .then(setToolStatus)
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Modern glassmorphism/arctic border + futuristic title for each category
   return (
     <section className="w-full max-w-3xl mx-auto animate-fade-in">
       <h2 className="text-2xl font-mono font-extrabold uppercase mb-6 text-center text-white tracking-[0.2em] letterspace-[2px] select-none drop-shadow-xl">
@@ -62,48 +77,40 @@ export const ToolAccordion = () => {
           TOOLS
         </span>
       </h2>
-      <Accordion type="multiple" className="flex flex-col gap-6 w-full">
-        {loading || !toolStatus ? (
-          <Skeleton className="w-full h-40 bg-white/10 rounded-2xl" />
-        ) : (
-          Object.entries(toolStatus).map(([category, tools]) => (
-            <AccordionItem
-              value={category}
-              key={category}
-              className="border border-white/15 rounded-2xl bg-gradient-to-bl from-black/25 via-white/5 to-black/65 overflow-hidden shadow-glass backdrop-blur-sm animate-scale-in group"
+      <div className="flex flex-col gap-6 w-full">
+        {Object.entries(defaultToolStatus).map(([category, tools]) => (
+          <div
+            key={category}
+            className="border border-white/15 rounded-2xl bg-gradient-to-bl from-black/25 via-white/5 to-black/65 overflow-hidden shadow-glass backdrop-blur-sm animate-scale-in group"
+          >
+            <button
+              onClick={() => toggleCategory(category)}
+              className="w-full px-8 py-6 text-xl sm:text-2xl font-mono font-black tracking-wider uppercase text-white border-b border-white/10 bg-gradient-to-r from-black/30 via-white/0 to-black/40 hover:bg-white/10 transition-all animate-fade-in drop-shadow text-left"
             >
-              <AccordionTrigger className="px-8 py-6 text-xl sm:text-2xl font-mono font-black tracking-wider uppercase text-white border-b border-white/10 bg-gradient-to-r from-black/30 via-white/0 to-black/40 group-hover:bg-white/10 transition-all animate-fade-in drop-shadow">
-                {category}
-              </AccordionTrigger>
-              <AccordionContent className="bg-gradient-to-bl from-black/60 to-white/10 pb-4 px-2 sm:px-6">
+              {category}
+            </button>
+            {expanded[category] && (
+              <div className="bg-gradient-to-bl from-black/60 to-white/10 pb-4 px-2 sm:px-6">
                 <ul>
-                  {Object.entries(tools).map(([tool, status]) => {
-                    let statValue = undefined;
-                    if (status === "available") {
-                      statValue = stats?.tools?.[category]?.[tool]?.visits;
-                      // Log each tool's stat for debug visibility
-                      console.log(`Tool stat for ${category}/${tool}:`, statValue);
-                    }
+                  {Object.entries(tools).map(([tool, toolInfo]) => {
+                    const visits = stats?.tools?.[category]?.[tool]?.visits;
                     return (
                       <ToolItem
                         key={tool}
                         title={tool[0].toUpperCase() + tool.slice(1)}
-                        status={status}
-                        toolKey={tool}
-                        stat={status === "available"
-                          ? (typeof statValue === "number" ? statValue : undefined)
-                          : undefined}
+                        toolInfo={toolInfo}
+                        visits={visits}
                       />
                     );
                   })}
                 </ul>
-              </AccordionContent>
-            </AccordionItem>
-          ))
-        )}
-      </Accordion>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
       <div className="text-center text-xs text-gray-400 font-mono mt-8">
-        * All tools run locally in your browser. Realtime stats update live.
+        * All tools run locally in your browser
       </div>
     </section>
   );

@@ -59,6 +59,8 @@ export default function PDFMergeTool() {
   }, []);
 
   const handleFileChange = async (e) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
     setIsProcessing(true);
     try {
       const newFiles = Array.from(e.target.files);
@@ -66,6 +68,11 @@ export default function PDFMergeTool() {
         newFiles.map(file => processPDFFile(file))
       );
       const validFiles = processedFiles.filter(file => file !== null);
+      
+      if (validFiles.length === 0) {
+        alert('No valid PDF files were processed');
+        return;
+      }
       
       const currentTotalPages = files.reduce((sum, file) => sum + file.pageCount, 0);
       const newTotalPages = validFiles.reduce((sum, file) => sum + file.pageCount, 0);
@@ -77,11 +84,13 @@ export default function PDFMergeTool() {
       }
       
       setFiles(prev => [...prev, ...validFiles]);
-      updateAllPages([...files, ...validFiles]);
+      updateAllPages([...prev, ...validFiles]);
     } catch (error) {
       console.error('Error handling files:', error);
+      alert(`Error processing files: ${error.message}`);
     } finally {
       setIsProcessing(false);
+      e.target.value = ''; // Reset input to allow re-uploading same files
     }
   };
 
@@ -438,8 +447,9 @@ export default function PDFMergeTool() {
         <div className="flex items-center space-x-4">
           <button
             onClick={mergePDFs}
-            className="bg-green-500 text-white px-4 py-2 rounded"
-            disabled={files.length === 0 || isProcessing}
+            className="bg-green-500 text-white px-4 py-2 rounded disabled:opacity-50"
+            disabled={allPages.filter(p => p.selected).length === 0 || isProcessing}
+            title={allPages.filter(p => p.selected).length === 0 ? 'Select pages to merge' : ''}
           >
             {isProcessing ? 'Merging...' : 'Merge PDFs'}
           </button>
