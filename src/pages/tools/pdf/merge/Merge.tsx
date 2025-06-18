@@ -6,7 +6,11 @@
 // pdf-lib, pdfjs-dist, react-beautiful-dnd, tesseract.js, @tensorflow/tfjs, @tensorflow-models/universal-sentence-encoder, classnames, tailwindcss (already in project)
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+<<<<<<< HEAD
 import { PDFDocument, PDFSaveOptions, rgb, degrees, StandardFonts } from 'pdf-lib';
+=======
+import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
+>>>>>>> main
 // import { getDatabase, ref, update, increment } from 'firebase/database'; // Firebase specific stats removed
 import { useAuth, UserRole } from '../../../../context/AuthContext'; // <-- project‑specific auth hook that returns {user, role}
 import { trackStat } from '../../../../lib/statsManager';
@@ -82,10 +86,13 @@ export default function PdfMergeTool() {
   const [duplicates, setDuplicates] = useState<number[]>([]); // indices of duplicate pages
   const [ocrText, setOcrText] = useState<string>('');
   const [applyGrayscale, setApplyGrayscale] = useState(false);
+<<<<<<< HEAD
   const [compressionLevel, setCompressionLevel] = useState<string>('none');
   const [detailedPages, setDetailedPages] = useState<DetailedPage[]>([]);
   const [isPageView, setIsPageView] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+=======
+>>>>>>> main
 
   // On mount: increment visits
   useEffect(() => {
@@ -380,6 +387,7 @@ export default function PdfMergeTool() {
     let finalMergedDoc: PDFDocument | null = null; // Renamed from mergedPdfOutput for clarity
 
     try {
+<<<<<<< HEAD
       finalMergedDoc = await PDFDocument.create();
       const standardFont = await finalMergedDoc.embedFont(StandardFonts.Helvetica);
 
@@ -428,6 +436,45 @@ export default function PdfMergeTool() {
               console.log('Grayscale effect selected, but no watermark. Full page grayscale not yet implemented.');
             }
             finalMergedDoc.addPage(page);
+=======
+      // Client priority: premium+ immediate, free: artificial delay to simulate queue.
+      // PRIORITY_QUEUE feature was removed. If specific delay logic is still needed for free/anonymous, it should be handled differently.
+      // For now, removing the explicit delay based on PRIORITY_QUEUE.
+      // if (!hasFeature(userRole, 'PRIORITY_QUEUE')) { // PRIORITY_QUEUE is no longer a feature
+      //   await new Promise((res) => setTimeout(res, 2000));
+      // }
+
+      const merged = await PDFDocument.create();
+      const standardFont = await merged.embedFont(StandardFonts.Helvetica);
+
+      for (const file of orderedFiles) {
+        const bytes = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(bytes);
+        const copiedPages = await merged.copyPages(pdf, pdf.getPageIndices());
+        for (const page of copiedPages) {
+          // Watermark all pages if watermark text provided
+          if (watermarkText) {
+            const { width, height } = page.getSize();
+            let R = 0.5, G = 0.5, B = 0.5; // Default watermark color (gray)
+            if (applyGrayscale) {
+              // Grayscale keeps R, G, B components equal.
+              // Using the existing default gray, but could be made configurable.
+              R = 0.4; G = 0.4; B = 0.4; // A slightly darker gray for grayscale effect
+            }
+            page.drawText(watermarkText, {
+              x: width / 2,
+              y: height / 2,
+              size: watermarkFontSize,
+              font: standardFont,
+              color: rgb(R, G, B),
+              rotate: degrees(watermarkRotation),
+              opacity: watermarkOpacity,
+              xSkew: 0,
+              ySkew: 0,
+            });
+          } else if (applyGrayscale) {
+            console.log('Grayscale effect selected, but no watermark text to apply it to. Full page grayscale for existing content is not yet implemented.');
+>>>>>>> main
           }
         }
       }
@@ -465,9 +512,14 @@ export default function PdfMergeTool() {
       // Track successful merge operation
       trackStat("mergeOps", "PDF", "merge", {
         totalFiles: orderedFiles.length,
+<<<<<<< HEAD
         totalSizeMB: parseFloat((orderedFiles.reduce((acc, f) => acc + f.size, 0) / (1024 * 1024)).toFixed(2)),
         userTier: userRole,
         compression: compressionLevel, // Added compression level
+=======
+        totalSizeMB: parseFloat((orderedFiles.reduce((acc, f) => acc + f.size, 0) / (1024*1024)).toFixed(2)),
+        userTier: userRole
+>>>>>>> main
       });
 
       // Track features used
@@ -482,9 +534,12 @@ export default function PdfMergeTool() {
       }
       if (dupIdx.length > 0) { // dupIdx from detectDuplicates
         trackStat("featureUsed", "PDF", "merge", { featureName: "duplicateDetection", userTier: userRole });
+<<<<<<< HEAD
       }
       if (compressionLevel !== 'none') {
         trackStat("featureUsed", "PDF", "merge", { featureName: "compression_" + compressionLevel, userTier: userRole });
+=======
+>>>>>>> main
       }
 
     } catch (err) {
@@ -712,6 +767,19 @@ export default function PdfMergeTool() {
             Attempt to reduce file size. Effectiveness may vary. Available to all users.
           </p>
         </div>
+        {/* Grayscale Checkbox */}
+        <div className="md:col-span-2 flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="grayscaleCheckbox"
+            checked={applyGrayscale}
+            onChange={(e) => setApplyGrayscale(e.target.checked)}
+            className="h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+          />
+          <label htmlFor="grayscaleCheckbox" className="text-sm font-medium">
+            Apply Grayscale Effect (to watermark)
+          </label>
+        </div>
       </div>
 
       {/* Action buttons */}
@@ -740,6 +808,7 @@ export default function PdfMergeTool() {
 
       {/* OCR Result (premium) */}
       {hasFeature(userRole, 'OCR') ? (
+<<<<<<< HEAD
         ocrText ? ( // Only show if there's text and feature is enabled
           <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
             <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
@@ -753,6 +822,12 @@ export default function PdfMergeTool() {
              <p className="text-sm text-gray-600 dark:text-gray-300">
               OCR text will appear here after processing if text is found.
             </p>
+=======
+        ocrText && (
+          <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded mb-6">
+            <h2 className="font-bold mb-2">Extracted Text (OCR)</h2>
+            <pre className="whitespace-pre-wrap text-sm max-h-60 overflow-y-auto">{ocrText}</pre>
+>>>>>>> main
           </div>
         )
       ) : (
