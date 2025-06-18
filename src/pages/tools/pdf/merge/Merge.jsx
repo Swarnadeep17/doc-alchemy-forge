@@ -84,8 +84,11 @@ export default function PDFMergeTool() {
         return;
       }
       
-      setFiles(prev => [...prev, ...validFiles]);
-      updateAllPages([...prev, ...validFiles]);
+      setFiles(prev => {
+        const newFiles = [...prev, ...validFiles];
+        updateAllPages(newFiles);
+        return newFiles;
+      });
     } catch (error) {
       console.error('Error handling files:', error);
       alert(`Error processing files: ${error.message}`);
