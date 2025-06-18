@@ -20,6 +20,7 @@ export default function PDFMergeTool() {
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.4);
   const [previewCanvas, setPreviewCanvas] = useState(null);
   const fileInputRef = useRef(null);
+  console.log('fileInputRef.current:', fileInputRef.current);
   const dropRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -362,10 +363,18 @@ export default function PDFMergeTool() {
             onChange={handleFileChange}
             accept=".pdf"
             multiple
-            className="hidden"
+            style={{ display: 'none' }}
           />
           <button
-            onClick={() => fileInputRef.current.click()}
+            onClick={() => {
+              console.log('Upload button clicked');
+              if (fileInputRef.current) {
+                console.log('Triggering file input click');
+                fileInputRef.current.click();
+              } else {
+                console.log('fileInputRef.current is null');
+              }
+            }}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition"
             disabled={isProcessing}
           >

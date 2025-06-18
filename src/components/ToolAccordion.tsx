@@ -39,14 +39,14 @@ const ToolItem = ({
           {title}
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-xs font-mono px-2 py-0.5 rounded bg-green-500/20 text-green-400 uppercase font-bold tracking-widest border border-green-500/20">
-            Available
-          </span>
           {typeof visits === "number" && (
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/10 text-white uppercase font-bold tracking-widest border border-white/20">
               {visits.toLocaleString()} views
             </span>
           )}
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-green-500/20 text-green-400 uppercase font-bold tracking-widest border border-green-500/20">
+            Available
+          </span>
         </span>
       </Link>
     ) : (
@@ -63,7 +63,7 @@ const ToolItem = ({
 );
 
 export const ToolAccordion = () => {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ PDF: true });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const { stats } = useLiveStats();
 
   const toggleCategory = (category: string) => {
