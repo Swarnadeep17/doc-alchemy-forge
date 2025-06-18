@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist/webpack';
-import { incrementStat } from '../../lib/incrementStats';
+import { incrementStat } from '../../../lib/incrementStats';
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 import * as tf from '@tensorflow/tfjs';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -21,7 +21,6 @@ export default function PDFMergeTool() {
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.4);
   const [previewCanvas, setPreviewCanvas] = useState(null);
   const fileInputRef = useRef(null);
-  console.log('fileInputRef.current:', fileInputRef.current);
   const dropRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -375,12 +374,8 @@ export default function PDFMergeTool() {
           />
           <button
             onClick={() => {
-              console.log('Upload button clicked');
               if (fileInputRef.current) {
-                console.log('Triggering file input click');
                 fileInputRef.current.click();
-              } else {
-                console.log('fileInputRef.current is null');
               }
             }}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg transition"
@@ -495,3 +490,4 @@ export default function PDFMergeTool() {
     </div>
   );
 }
+</attempt_completion>
