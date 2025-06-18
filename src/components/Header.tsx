@@ -1,7 +1,7 @@
-import { LogoHorizontal } from "@/components/LogoHorizontal";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/AuthContext";
-import AnimatedAuthButton from "@/components/AnimatedAuthButton";
+import { LogoHorizontal } from "./LogoHorizontal";
+import { Button } from "./ui/button";
+import { useAuth } from "../context/AuthContext";
+import AnimatedAuthButton from "./AnimatedAuthButton";
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 
