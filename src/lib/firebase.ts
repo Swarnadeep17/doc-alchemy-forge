@@ -31,18 +31,13 @@ const firebaseConfig = {
  * @returns Promise that resolves with initialized Firebase services
  * @throws Error if Firebase initialization fails
  */
-let app: FirebaseApp;
-let db: Database;
-let auth: Auth;
+// Initialize Firebase app immediately
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
 
 const initializeFirebase = async (): Promise<FirebaseServices> => {
   try {
-    // Initialize core Firebase services if not already done
-    if (!app) {
-      app = initializeApp(firebaseConfig);
-      db = getDatabase(app);
-      auth = getAuth(app);
-    }
 
     // Configure database for optimized performance
     if (typeof window !== 'undefined') {

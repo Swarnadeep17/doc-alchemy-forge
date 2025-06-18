@@ -1,12 +1,10 @@
-// src/pages/Index.tsx
-
-import Header from "@/components/Header";
-import { ToolAccordion } from "@/components/ToolAccordion";
-import { HeroStats } from "@/components/HeroStats";
-import { WhyUsTable } from "@/components/WhyUsTable";
-import { USPCard } from "@/components/USPCard";
+import Header from "../components/Header";
+import { ToolAccordion } from "../components/ToolAccordion";
+import { HeroStats } from "../components/HeroStats";
+import { WhyUsTable } from "../components/WhyUsTable";
+import { USPCard } from "../components/USPCard";
 import { useEffect } from "react";
-import { incrementStat } from "@/lib/incrementStats";
+import { incrementStat } from "../lib/incrementStats";
 import { Shield, Zap, TrendingUp, Lock, Cpu, Gem } from "lucide-react";
 
 const USP_LIST = [

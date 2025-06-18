@@ -1,5 +1,4 @@
-
-import { db } from "@/lib/firebase";
+import { db } from "./firebase";
 import { ref, runTransaction } from "firebase/database";
 
 /**

@@ -11,9 +11,9 @@ import {
   RecaptchaVerifier,
   User as FirebaseUser,
 } from "firebase/auth";
-import { db, app } from "@/lib/firebase";
+import { initializeFirebase, db, app } from "../lib/firebase";
 import { ref, set, get, update, serverTimestamp } from "firebase/database";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "../hooks/use-toast";
 
 // User Roles
 export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
@@ -67,7 +67,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [phoneConfResult, setPhoneConfResult] = useState<any>(null);
 
+  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   const auth = getAuth(app);
+
+  // Initialize Firebase on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeFirebase();
+        setFirebaseInitialized(true);
+      } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        toast({ title: 'Authentication service unavailable', variant: 'destructive' });
+      }
+    };
+    init();
+  }, []);
+
+  // Guard all auth operations until Firebase is initialized
+  const requireInitialized = () => {
+    if (!firebaseInitialized) {
+      throw new Error('Firebase not initialized yet');
+    }
+  };
 
   // --- Get user role
   const fetchRole = async (fbUser: FirebaseUser): Promise<UserRole> => {
@@ -101,17 +123,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
     return () => unsub();
-    // eslint-disable-next-line
-  }, []);
+  }, [auth]);
 
   // --- Auth flows
   const loginWithEmail = async (email: string, password: string, promoCode?: string) => {
+    requireInitialized();
     setLoading(true);
     await signInWithEmailAndPassword(auth, email, password);
     setLoading(false);
   };
 
   const signupWithEmail = async (email: string, password: string, promoCode?: string) => {
+    requireInitialized();
     setLoading(true);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Default role and promoCode
@@ -150,6 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const loginWithGoogle = async () => {
+    requireInitialized();
     setLoading(true);
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
@@ -171,6 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     recaptchaContainerId: string,
     code?: string
   ): Promise<any> => {
+    requireInitialized();
     setLoading(true);
     if (!code) {
       const verifier = new RecaptchaVerifier(
@@ -193,12 +218,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const verifyPhone = async (confirmationResult: any, code: string) => {
+    requireInitialized();
     setLoading(true);
     await confirmationResult.confirm(code);
     setLoading(false);
   };
 
   const logout = async () => {
+    requireInitialized();
     await signOut(auth);
     setUser(null);
   };
@@ -309,9 +336,3 @@ export const useAuth = () => {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };
-
-// NOTES FOR FURTHER FEATURES:
-// - UI for promo code management must limit creation to superadmin.
-// - Admin analytics dashboard can read from DB paths:
-//   /stats (usage), /users (roles and counts), /promoCodes (tracking usage, by code, by redeemer)
-// - For testing: create an initial superadmin user by manually editing the first user's role in DB.
