@@ -57,7 +57,11 @@ export async function trackStat(
   // --- NEW: Increment option-specific stats ---
   if (options && Object.keys(options).length > 0) {
     const optionUpdates = Object.entries(options).map(([optionName, optionValue]) => {
-      return increment(`${basePath}/tools/${category}/${tool}/options/${optionName}/${optionValue}`);
+      // Sanitize string option values used as path segments
+      const sanitizedValue = (typeof optionValue === 'string')
+        ? String(optionValue).replace(/[.#$\[\]`]/g, '_').substring(0, 100)
+        : optionValue;
+      return increment(`${basePath}/tools/${category}/${tool}/options/${optionName}/${sanitizedValue}`);
     });
     updates.push(...optionUpdates);
   }
