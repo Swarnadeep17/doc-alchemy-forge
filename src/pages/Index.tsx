@@ -2,6 +2,7 @@ import Header from "../components/Header";
 import { ToolAccordion } from "../components/ToolAccordion";
 import { HeroStats } from "../components/HeroStats";
 import { WhyUsTable } from "../components/WhyUsTable";
+import Footer from '../components/Footer';
 import { USPCard } from "../components/USPCard";
 import { useEffect } from "react";
 import { incrementStat } from "../lib/incrementStats";
@@ -72,9 +73,7 @@ const Index = () => {
         <WhyUsTable />
       </main>
 
-      <footer className="w-full py-6 text-center text-xs text-white/60 font-mono border-t border-white/10 mt-12">
-        © {new Date().getFullYear()} docenclave — Built for the future.
-      </footer>
+      <Footer />
     </div>
   );
 };
