@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import Account from "./pages/Account";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import { AuthProvider } from "@/context/AuthContext";
+import PerformanceMonitor from "@/components/PerformanceMonitor";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +20,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PerformanceMonitor />
       {/* Wrap the app in AuthProvider */}
       <AuthProvider>
         <BrowserRouter>
