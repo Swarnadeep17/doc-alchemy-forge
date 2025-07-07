@@ -1,43 +1,74 @@
-
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import { useLiveStats } from "@/hooks/useLiveStats";
+import { trackToolStart, trackConversion } from "@/lib/enhancedAnalytics";
 
 // Types for tool status
-type ToolStatus = { [category: string]: { [tool: string]: "available" | "coming_soon" } };
+type ToolStatus = {
+  [category: string]: { [tool: string]: "available" | "coming_soon" };
+};
 
 // Futuristic, monochrome stat item
-const StatDisplay = ({count}: {count: number}) => (
+const StatDisplay = ({ count }: { count: number }) => (
   <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/15 font-mono font-bold text-base text-white shadow-inner backdrop-blur select-none animate-fade-in">
-    <span>
-      {count.toLocaleString()}
+    <span>{count.toLocaleString()}</span>
+    <span className="ml-1 text-xs font-medium text-gray-300/70 tracking-tight">
+      USES
     </span>
-    <span className="ml-1 text-xs font-medium text-gray-300/70 tracking-tight">USES</span>
   </div>
 );
 
 // Tool item with modern monochrome feel
 const ToolItem = ({
-  title, status, toolKey, stat,
-}: { title: string; status: "available" | "coming_soon"; toolKey: string; stat?: number }) => (
-  <li className="flex items-center justify-between gap-4 my-2 py-2 px-4 rounded-xl group border border-white/10 transition-all bg-gradient-to-tr from-black/40 to-white/5 hover:shadow-lg hover:scale-105 hover:bg-white/8 backdrop-blur animate-fade-in">
-    <span className="font-mono text-white text-base sm:text-lg tracking-widest uppercase drop-shadow">
-      {title}
-    </span>
-    <span>
-      {status === "available" ? (
-        stat === undefined
-          ? <Skeleton className="w-12 h-6 bg-gray-700 rounded-md mx-2" />
-          : <StatDisplay count={stat}/>
-      ) : (
-        <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/50 uppercase font-bold tracking-widest border border-white/10 blur-[0.5px]">
-          Coming Soon
-        </span>
-      )}
-    </span>
-  </li>
-);
+  title,
+  status,
+  toolKey,
+  stat,
+  category,
+}: {
+  title: string;
+  status: "available" | "coming_soon";
+  toolKey: string;
+  stat?: number;
+  category: string;
+}) => {
+  const handleToolClick = () => {
+    if (status === "available") {
+      trackToolStart(category, toolKey);
+      trackConversion("tool_first_use", 1, { tool: `${category}/${toolKey}` });
+    }
+  };
+
+  return (
+    <li
+      className="flex items-center justify-between gap-4 my-2 py-2 px-4 rounded-xl group border border-white/10 transition-all bg-gradient-to-tr from-black/40 to-white/5 hover:shadow-lg hover:scale-105 hover:bg-white/8 backdrop-blur animate-fade-in cursor-pointer"
+      onClick={handleToolClick}
+    >
+      <span className="font-mono text-white text-base sm:text-lg tracking-widest uppercase drop-shadow">
+        {title}
+      </span>
+      <span>
+        {status === "available" ? (
+          stat === undefined ? (
+            <Skeleton className="w-12 h-6 bg-gray-700 rounded-md mx-2" />
+          ) : (
+            <StatDisplay count={stat} />
+          )
+        ) : (
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/50 uppercase font-bold tracking-widest border border-white/10 blur-[0.5px]">
+            Coming Soon
+          </span>
+        )}
+      </span>
+    </li>
+  );
+};
 
 export const ToolAccordion = () => {
   const [toolStatus, setToolStatus] = useState<ToolStatus | null>(null);
@@ -49,7 +80,7 @@ export const ToolAccordion = () => {
 
   useEffect(() => {
     fetch("/tools/status.json")
-      .then(r => r.json())
+      .then((r) => r.json())
       .then(setToolStatus)
       .finally(() => setLoading(false));
   }, []);
@@ -82,7 +113,10 @@ export const ToolAccordion = () => {
                     if (status === "available") {
                       statValue = stats?.tools?.[category]?.[tool]?.visits;
                       // Log each tool's stat for debug visibility
-                      console.log(`Tool stat for ${category}/${tool}:`, statValue);
+                      console.log(
+                        `Tool stat for ${category}/${tool}:`,
+                        statValue,
+                      );
                     }
                     return (
                       <ToolItem
@@ -90,9 +124,14 @@ export const ToolAccordion = () => {
                         title={tool[0].toUpperCase() + tool.slice(1)}
                         status={status}
                         toolKey={tool}
-                        stat={status === "available"
-                          ? (typeof statValue === "number" ? statValue : undefined)
-                          : undefined}
+                        category={category}
+                        stat={
+                          status === "available"
+                            ? typeof statValue === "number"
+                              ? statValue
+                              : undefined
+                            : undefined
+                        }
                       />
                     );
                   })}
