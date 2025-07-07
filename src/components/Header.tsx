@@ -35,36 +35,40 @@ const Header = () => {
   const location = useLocation();
 
   return (
-    <header className="w-full flex items-center justify-between px-3 py-5 md:px-10 bg-transparent border-b border-white/10">
-      <Link to="/" className="hover:opacity-90 transition-opacity">
-        <LogoHorizontal size={38} />
-      </Link>
-      <nav className="flex items-center gap-2 md:gap-6">
-        {user && (user.role === "admin" || user.role === "superadmin") && (
-          <Button
-            variant="ghost"
-            className={`text-cyan-300 border border-cyan-400/60 bg-cyan-900/30 px-4 hover:bg-cyan-400/20 ml-2 font-mono uppercase font-extrabold transition-colors shadow ${
-              location.pathname === "/admin-dashboard" ? "ring-2 ring-cyan-400" : ""
-            }`}
-            asChild
-          >
-            <Link to="/admin-dashboard">Dashboard</Link>
-          </Button>
-        )}
-
-        {!user && <AnimatedAuthButton />}
-        
-        {user && (
-          <>
+    <header className="w-full flex items-center justify-center px-3 py-5 md:px-10 bg-transparent border-b border-white/10">
+      <div className="flex items-center justify-between w-full max-w-6xl">
+        <Link to="/" className="hover:opacity-90 transition-opacity">
+          <LogoHorizontal size={38} />
+        </Link>
+        <nav className="flex items-center gap-2 md:gap-6">
+          {user && (user.role === "admin" || user.role === "superadmin") && (
             <Button
-              className={`ml-2 px-5 py-2 rounded-lg shadow-md font-mono uppercase tracking-widest text-base transition-all ${levelStyle.className}`}
+              variant="ghost"
+              className={`text-cyan-300 border border-cyan-400/60 bg-cyan-900/30 px-4 hover:bg-cyan-400/20 ml-2 font-mono uppercase font-extrabold transition-colors shadow ${
+                location.pathname === "/admin-dashboard"
+                  ? "ring-2 ring-cyan-400"
+                  : ""
+              }`}
               asChild
             >
-              <Link to="/account">{levelStyle.label}</Link>
+              <Link to="/admin-dashboard">Dashboard</Link>
             </Button>
-          </>
-        )}
-      </nav>
+          )}
+
+          {!user && <AnimatedAuthButton />}
+
+          {user && (
+            <>
+              <Button
+                className={`ml-2 px-5 py-2 rounded-lg shadow-md font-mono uppercase tracking-widest text-base transition-all ${levelStyle.className}`}
+                asChild
+              >
+                <Link to="/account">{levelStyle.label}</Link>
+              </Button>
+            </>
+          )}
+        </nav>
+      </div>
     </header>
   );
 };
