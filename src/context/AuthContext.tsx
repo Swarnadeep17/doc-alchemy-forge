@@ -14,9 +14,15 @@ import {
 import { db, app } from "@/lib/firebase";
 import { ref, set, get, update, serverTimestamp } from "firebase/database";
 import { toast } from "@/hooks/use-toast";
+import { trackConversion } from "@/lib/enhancedAnalytics";
 
 // User Roles
-export type UserRole = "anonymous" | "free" | "premium" | "admin" | "superadmin";
+export type UserRole =
+  | "anonymous"
+  | "free"
+  | "premium"
+  | "admin"
+  | "superadmin";
 
 export interface AuthUser {
   uid: string;
@@ -49,10 +55,22 @@ interface AuthContextProps {
   user: AuthUser | null;
   loading: boolean;
   // Auth flows:
-  loginWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
-  signupWithEmail: (email: string, password: string, promoCode?: string) => Promise<void>;
+  loginWithEmail: (
+    email: string,
+    password: string,
+    promoCode?: string,
+  ) => Promise<void>;
+  signupWithEmail: (
+    email: string,
+    password: string,
+    promoCode?: string,
+  ) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  loginWithPhone: (phone: string, recaptchaContainerId: string, code?: string) => Promise<any>;
+  loginWithPhone: (
+    phone: string,
+    recaptchaContainerId: string,
+    code?: string,
+  ) => Promise<any>;
   verifyPhone: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
   // Promo codes:
@@ -77,7 +95,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // --- Format user object
-  const formatUser = async (fbUser: FirebaseUser | null): Promise<AuthUser | null> => {
+  const formatUser = async (
+    fbUser: FirebaseUser | null,
+  ): Promise<AuthUser | null> => {
     if (!fbUser) return null;
     const role = await fetchRole(fbUser);
     return {
@@ -105,13 +125,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // --- Auth flows
-  const loginWithEmail = async (email: string, password: string, promoCode?: string) => {
+  const loginWithEmail = async (
+    email: string,
+    password: string,
+    promoCode?: string,
+  ) => {
     setLoading(true);
     await signInWithEmailAndPassword(auth, email, password);
+    trackConversion("login", 1, { method: "email" });
     setLoading(false);
   };
 
-  const signupWithEmail = async (email: string, password: string, promoCode?: string) => {
+  const signupWithEmail = async (
+    email: string,
+    password: string,
+    promoCode?: string,
+  ) => {
     setLoading(true);
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Default role and promoCode
@@ -126,7 +155,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (codeSnap.exists()) {
         const codeData: PromoCodeRecord = codeSnap.val();
         // Only apply unused and unexpired codes
-        if (!codeData.redeemed && (!codeData.expiresAt || Date.now() < codeData.expiresAt)) {
+        if (
+          !codeData.redeemed &&
+          (!codeData.expiresAt || Date.now() < codeData.expiresAt)
+        ) {
           // Set proper role and mark code as redeemed
           if (codeData.targetRole === "premium") newRole = "premium";
           if (codeData.targetRole === "admin") newRole = "admin";
@@ -146,6 +178,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       role: newRole,
       promoCodeRedeemed,
     });
+
+    // Track conversion
+    trackConversion("signup", 1, {
+      method: "email",
+      role: newRole,
+      usedPromoCode: !!promoCode,
+    });
+
     setLoading(false);
   };
 
@@ -162,6 +202,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         role: "free",
         promoCodeRedeemed: null,
       });
+      trackConversion("signup", 1, { method: "google", role: "free" });
+    } else {
+      trackConversion("login", 1, { method: "google" });
     }
     setLoading(false);
   };
@@ -169,22 +212,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loginWithPhone = async (
     phone: string,
     recaptchaContainerId: string,
-    code?: string
+    code?: string,
   ): Promise<any> => {
     setLoading(true);
     if (!code) {
-      const verifier = new RecaptchaVerifier(
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
+        size: "invisible",
+      });
+      const confirmationResult = await signInWithPhoneNumber(
         auth,
-        recaptchaContainerId,
-        { size: "invisible" }
+        phone,
+        verifier,
       );
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, verifier);
       setPhoneConfResult(confirmationResult);
       setLoading(false);
       toast({ title: "Enter the code sent to your phone." });
       return confirmationResult;
     } else {
-      if (!phoneConfResult) throw new Error("No confirmation available for verification");
+      if (!phoneConfResult)
+        throw new Error("No confirmation available for verification");
       await phoneConfResult.confirm(code);
       setPhoneConfResult(null);
       setLoading(false);
@@ -222,14 +268,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       redeemed: false,
       redeemedBy: null,
       redeemedAt: null,
-      expiresAt: options.type === "expires_in" ? options.expiresAt : null
+      expiresAt: options.type === "expires_in" ? options.expiresAt : null,
     };
 
     await set(codeRef, codeData);
 
-    const description = options.type === "expires_in" 
-      ? `For ${options.targetRole} (expires ${new Date(options.expiresAt!).toLocaleString()})` 
-      : `For ${options.targetRole} (${options.type || "permanent"})`;
+    const description =
+      options.type === "expires_in"
+        ? `For ${options.targetRole} (expires ${new Date(options.expiresAt!).toLocaleString()})`
+        : `For ${options.targetRole} (${options.type || "permanent"})`;
 
     toast({ title: `Promo code created: ${code}`, description });
     return code;
@@ -250,7 +297,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const codeData: PromoCodeRecord = codeSnap.val();
-    if (codeData.redeemed || (codeData.expiresAt && Date.now() > codeData.expiresAt)) {
+    if (
+      codeData.redeemed ||
+      (codeData.expiresAt && Date.now() > codeData.expiresAt)
+    ) {
       setLoading(false);
       toast({ title: "Promo code expired or already used." });
       throw new Error("Promo code expired or already used.");
@@ -280,6 +330,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     setUser({ ...user, role: newRole, promoCodeRedeemed: code });
+
+    // Track promo code conversion
+    trackConversion("promo_redeem", 1, {
+      fromRole: user.role,
+      toRole: newRole,
+      promoCode: code,
+    });
+
     setLoading(false);
     toast({ title: `Upgraded to ${newRole}!` });
   };
