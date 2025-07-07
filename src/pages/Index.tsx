@@ -7,46 +7,62 @@ import { WhyUsTable } from "@/components/WhyUsTable";
 import { USPCard } from "@/components/USPCard";
 import { useEffect } from "react";
 import { incrementStat } from "@/lib/incrementStats";
+import { trackPageView, trackConversion } from "@/lib/enhancedAnalytics";
+import { useAuth } from "@/context/AuthContext";
 import { Shield, Zap, TrendingUp, Lock, Cpu, Gem } from "lucide-react";
 
 const USP_LIST = [
   {
     title: "Client-Side Only",
-    description: "All processing is local—your data is never sent to any server, ensuring 100% privacy.",
+    description:
+      "All processing is local—your data is never sent to any server, ensuring 100% privacy.",
     icon: <Lock className="w-6 h-6 text-cyan-400" />,
   },
   {
     title: "No Account Needed",
-    description: "Access powerful document tools instantly with zero signup and no personal info required.",
+    description:
+      "Access powerful document tools instantly with zero signup and no personal info required.",
     icon: <Zap className="w-6 h-6 text-cyan-400" />,
   },
   {
     title: "Real-Time Transparency",
-    description: "Live stats are publicly displayed, reflecting our commitment to open usage and honesty.",
+    description:
+      "Live stats are publicly displayed, reflecting our commitment to open usage and honesty.",
     icon: <TrendingUp className="w-6 h-6 text-cyan-400" />,
   },
   {
     title: "Zero File Uploads",
-    description: "Never upload your docs to the internet—edit, convert or redact securely in your own browser.",
+    description:
+      "Never upload your docs to the internet—edit, convert or redact securely in your own browser.",
     icon: <Shield className="w-6 h-6 text-cyan-400" />,
   },
   {
     title: "Modern Web Tech",
-    description: "Optimized for speed using cutting-edge browser technologies—no plugins or downloads needed.",
+    description:
+      "Optimized for speed using cutting-edge browser technologies—no plugins or downloads needed.",
     icon: <Cpu className="w-6 h-6 text-cyan-400" />,
   },
   {
     title: "Forever Free & Secure",
-    description: "Our mission: Simple, secure, and free tools for everyone, with no tracking—ever.",
+    description:
+      "Our mission: Simple, secure, and free tools for everyone, with no tracking—ever.",
     icon: <Gem className="w-6 h-6 text-cyan-400" />,
   },
 ];
 
 const Index = () => {
-  // Increment website visit count on mount (once per user session)
+  const { user } = useAuth();
+
+  // Increment website visit count and track enhanced analytics
   useEffect(() => {
     incrementStat(["overall", "visits"]);
-  }, []);
+    trackPageView("homepage");
+
+    // Track return visit if user is logged in
+    if (user) {
+      trackConversion("return_visit", 1, { userRole: user.role });
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-black">
@@ -68,9 +84,9 @@ const Index = () => {
             ))}
           </div>
         </section>
-        
+
         <ToolAccordion />
-        
+
         <WhyUsTable />
       </main>
 
