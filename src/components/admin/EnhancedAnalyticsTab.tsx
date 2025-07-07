@@ -5,6 +5,8 @@ import {
   useEnhancedAnalytics,
   useLiveUserCount,
 } from "@/hooks/useEnhancedAnalytics";
+import RealTimeAnalyticsDashboard from "./RealTimeAnalyticsDashboard";
+import AnalyticsInsights from "./AnalyticsInsights";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,7 +137,7 @@ const EnhancedAnalyticsTab = () => {
 
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 bg-gray-900 border border-gray-700">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 bg-gray-900 border border-gray-700">
           <TabsTrigger value="overview" className="font-mono">
             Overview
           </TabsTrigger>
@@ -147,6 +149,9 @@ const EnhancedAnalyticsTab = () => {
           </TabsTrigger>
           <TabsTrigger value="conversions" className="font-mono">
             Conversions
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="font-mono">
+            Insights
           </TabsTrigger>
           <TabsTrigger value="realtime" className="font-mono">
             Real-time
@@ -400,73 +405,14 @@ const EnhancedAnalyticsTab = () => {
           </div>
         </TabsContent>
 
+        {/* Insights Tab */}
+        <TabsContent value="insights" className="space-y-6">
+          <AnalyticsInsights timeRange={selectedTimeRange} />
+        </TabsContent>
+
         {/* Real-time Tab */}
         <TabsContent value="realtime" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Live Tool Usage */}
-            <Card className="bg-gray-950/50 border border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Live Tool Usage
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.realTime.liveToolUsage.length > 0 ? (
-                    data.realTime.liveToolUsage.map((usage, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-gray-800/30 rounded"
-                      >
-                        <span className="text-gray-300">{usage.tool}</span>
-                        <span className="text-gray-400 text-sm font-mono">
-                          {new Date(usage.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-4">
-                      No active tool usage
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Errors */}
-            <Card className="bg-gray-950/50 border border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Recent Errors
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.realTime.recentErrors.length > 0 ? (
-                    data.realTime.recentErrors.map((error, index) => (
-                      <div
-                        key={index}
-                        className="p-2 bg-red-900/20 border border-red-400/30 rounded"
-                      >
-                        <div className="text-red-300 text-sm">
-                          {error.message}
-                        </div>
-                        <div className="text-gray-400 text-xs font-mono mt-1">
-                          {new Date(error.timestamp).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-4">
-                      No recent errors
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <RealTimeAnalyticsDashboard />
         </TabsContent>
       </Tabs>
     </div>
